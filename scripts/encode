@@ -1,0 +1,116 @@
+#!/usr/bin/python3
+import sys
+import os
+
+
+def encode_list(l):
+    encoded = ""
+    for x in l:
+        encoded += "11"
+        encoded += x
+    encoded += "00"
+    return encoded
+
+
+def encode_pair(fst, snd):
+    encoded = "11"
+    encoded += fst
+    encoded += snd
+    return encoded
+
+
+def encode_digit(d):
+    encoded = ""
+    if d == 0:
+        return "010"
+    if d >= 0:
+        encoded = "01"
+    else:
+        encoded = "10"
+        d = -d
+    n_4bits = 0
+    tmp = d
+    while tmp > 0:
+        n_4bits += 1
+        tmp >>= 4
+    encoded += "1" * n_4bits + "0"
+    encoded += "{:b}".format(d).rjust(n_4bits * 4, '0')
+    return encoded
+
+
+def encode_nil():
+    return "00"
+
+
+def parse_list(source):
+    l = []
+    while True:
+        source = source.lstrip()
+        if source.startswith(']'):
+            return encode_list(l), source[1:]
+        encoded, source = parse(source)
+        l.append(encoded)
+
+
+def parse_pair(source):
+    fst, source = parse(source)
+    snd, source = parse(source)
+
+    source = source.lstrip()
+    if not source.startswith(')'):
+        raise RuntimeError("Close paren is required: " + source)
+    source = source[1:]
+
+    return encode_pair(fst, snd), source
+
+
+def parse_digit(source):
+    d = ""
+    if source[0] == '-':
+        sign = -1
+        source = source[1:]
+    else:
+        sign = 1
+    while True:
+        if len(source) == 0 or not source[0].isdigit():
+            return encode_digit(sign * int(d)), source
+        d += source[0]
+        source = source[1:]
+
+
+def parse_nil(source):
+    source = source[3:]
+    return encode_nil(), source
+
+
+# returns (encoded, rest source)
+def parse(source):
+    source = source.lstrip()
+    if len(source) == 0:
+        return ("", "")
+    ch = source[0]
+    if ch == '[':
+        return parse_list(source[1:])
+    elif ch == '(':
+        return parse_pair(source[1:])
+    elif ch.isdigit() or ch == '-':
+        return parse_digit(source)
+    elif source.startswith("nil"):
+        return parse_nil(source)
+    else:
+        raise RuntimeError("Invalid syntax around here: " + source)
+
+
+def main():
+    source = sys.stdin.read()
+    encoded, rest = parse(source)
+
+    print(encoded)
+
+    rest = rest.lstrip()
+    if len(rest) != 0:
+        raise RuntimeError("Rest is not empty: [{}]".format(rest))
+
+
+if __name__ == '__main__':
+    main()
