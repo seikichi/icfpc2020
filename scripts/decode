@@ -15,16 +15,23 @@ def decode(s):
     >>> decode('0111000010000')[0]
     '16'
     >>> decode('110000')[0]
-    '(nil nil)'
+    '[nil]'
     >>> decode('1101000')[0]
-    '(0 nil)'
+    '[0]'
     >>> decode('11010110110000100')[0]
     '[0 1]'
+    >>> decode('11010010')[0]
+    '(0 0)'
     """
     b01, s = s[0:2], s[2:]
     if b01 == '11':
         left, s = decode(s)
         right, s = decode(s)
+        if right == 'nil':
+            return '[{}]'.format(left), s
+        if right.startswith('(') or right.startswith('['):
+            return '[{} {}]'.format(left, right[1:-1]), s
+
         return '({} {})'.format(left, right),s
     if b01 == '01' or b01 == '10':
         sign = +1 if b01 == '01' else -1
