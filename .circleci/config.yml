@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: rust:1.35
+      - image: rust:1.44.1-buster
     steps:
       - checkout
       - run:
@@ -16,6 +16,6 @@ jobs:
 
 workflows:
   version: 2
-  nanobot:
+  highlight:
     jobs:
       - build
