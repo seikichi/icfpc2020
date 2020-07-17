@@ -4,32 +4,42 @@ import sys
 
 def decode(s):
     """
-    >>> decode('00')
+    >>> decode('00')[0]
     'nil'
-    >>> decode('010')
+    >>> decode('010')[0]
     '0'
-    >>> decode('01100001')
+    >>> decode('01100001')[0]
     '1'
-    >>> decode('10100001')
+    >>> decode('10100001')[0]
     '-1'
-    >>> decode('0111000010000')
+    >>> decode('0111000010000')[0]
     '16'
+    >>> decode('110000')[0]
+    '(nil nil)'
+    >>> decode('1101000')[0]
+    '(0 nil)'
+    >>> decode('11010110110000100')[0]
+    '[0 1]'
     """
-    b01 = s[0:2]
-    if b01 == '00':
-        return 'nil'
+    b01, s = s[0:2], s[2:]
+    if b01 == '11':
+        left, s = decode(s)
+        right, s = decode(s)
+        return '({} {})'.format(left, right),s
     if b01 == '01' or b01 == '10':
         sign = +1 if b01 == '01' else -1
-        index = s[2:].index('0')
+        index = s.index('0')
+        s = s[index + 1:]
         if index == 0:
-            return '0'
-        return str(sign * int(s[2+index+1:2+index+1+index*4], 2))
-    return s # FAIL
-
+            return '0', s
+        b, s = s[:index*4], s[index*4:]
+        return str(sign * int(b, 2)), s
+    else:
+        return 'nil', s
 
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
 
     for line in sys.stdin:
-        print(decode(line.strip()))
+        print(decode(line.strip())[0])
