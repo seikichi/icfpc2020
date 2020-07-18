@@ -145,7 +145,9 @@ impl AstNode {
 fn need_children(function: Function) -> Vec<usize> {
     match function {
         Function::Neg => vec![0],
-        Function::Add | Function::Mul | Function::Div => vec![0, 1],
+        Function::Add | Function::Mul | Function::Div | Function::Lt | Function::Equal => {
+            vec![0, 1]
+        }
         Function::Cons => vec![],
         Function::Car => vec![0],
         Function::Cdr => vec![0],
@@ -203,6 +205,30 @@ fn resolve_ast_node(
                 }
             }
         }
+        Function::Lt => {
+            if let Function::Number(lhs) = evaluated_children[0].value {
+                if let Function::Number(rhs) = evaluated_children[1].value {
+                    let ret = if lhs < rhs {
+                        Function::True
+                    } else {
+                        Function::False
+                    };
+                    return AstNode::make_leaf(ret);
+                }
+            }
+        }
+        Function::Equal => {
+            if let Function::Number(lhs) = evaluated_children[0].value {
+                if let Function::Number(rhs) = evaluated_children[1].value {
+                    let ret = if lhs == rhs {
+                        Function::True
+                    } else {
+                        Function::False
+                    };
+                    return AstNode::make_leaf(ret);
+                }
+            }
+        }
         Function::Cons => {
             return Rc::new(AstNode {
                 value: node.value,
@@ -253,6 +279,8 @@ fn evaluate(node: Rc<AstNode>, ast_nodes: &HashMap<i64, Rc<AstNode>>, depth: usi
                 | Function::Mul
                 | Function::Div
                 | Function::Cons
+                | Function::Lt
+                | Function::Equal
                 | Function::True
                 | Function::False => {
                     if ret.children.len() == 2 {
@@ -345,6 +373,7 @@ fn test_lasy_evaluation_cons() {
     assert!(node.value == Function::Nil);
 }
 
+#[test]
 fn test_lazy_true_false() {
     let node1 = AstNode::parse_str(":111 = :111");
     let mut ast_nodes = HashMap::new();
@@ -365,4 +394,28 @@ fn test_lazy_true_false() {
     let node = AstNode::parse_str(":112 = ap ap f :111 1");
     let node = evaluate(node, &ast_nodes, 0);
     assert!(node.value == Function::Number(1));
+}
+
+#[test]
+fn test_cmp() {
+    let node1 = AstNode::parse_str(":111 = :111");
+    let mut ast_nodes = HashMap::new();
+    ast_nodes.insert(111, node1);
+
+    let node = AstNode::parse_str(":112 = ap ap lt 0 1");
+    let node = evaluate(node, &ast_nodes, 0);
+    // println!("{:#?}", node);
+    assert!(node.value == Function::True);
+    let node = AstNode::parse_str(":112 = ap ap lt 0 0");
+    let node = evaluate(node, &ast_nodes, 0);
+    // println!("{:#?}", node);
+    assert!(node.value == Function::False);
+    let node = AstNode::parse_str(":112 = ap ap eq 0 0");
+    let node = evaluate(node, &ast_nodes, 0);
+    // println!("{:#?}", node);
+    assert!(node.value == Function::True);
+    let node = AstNode::parse_str(":112 = ap ap eq 1 0");
+    let node = evaluate(node, &ast_nodes, 0);
+    // println!("{:#?}", node);
+    assert!(node.value == Function::False);
 }
