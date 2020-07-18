@@ -151,6 +151,7 @@ fn need_children(function: Function) -> Vec<usize> {
         Function::Cons => vec![],
         Function::Car => vec![],
         Function::Cdr => vec![],
+        Function::Nil => vec![],
         Function::Isnil => vec![0],
         Function::True => vec![0],
         Function::False => vec![1],
@@ -294,6 +295,9 @@ fn resolve_ast_node(
             });
             return evaluate(leaf, ast_nodes, memo, depth);
         }
+        Function::Nil => {
+            return AstNode::make_leaf(Function::True);
+        }
         Function::Isnil => {
             let ret = if evaluated_children[0].value == Function::Nil {
                 Function::True
@@ -372,6 +376,7 @@ fn evaluate(
                 Function::Neg
                 | Function::Car
                 | Function::Cdr
+                | Function::Nil
                 | Function::Isnil
                 | Function::Icombinator => {
                     if ret.children.len() == 1 {
