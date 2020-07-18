@@ -160,6 +160,9 @@ fn resolve_ast_node(node: Rc<AstNode>) -> Rc<AstNode> {
                 }
             }
         }
+        Function::Cons => {
+            return node
+        }
         _ => unimplemented!(),
     }
     panic!("invalid status");
@@ -186,7 +189,7 @@ fn evaluate(
                         panic!(message);
                     }
                 }
-                Function::Add => {
+                Function::Add | Function::Cons => {
                     let mut children = lhs.children.clone();
                     children.push(rhs.clone());
                     let mut ret = Rc::new(AstNode {
@@ -228,8 +231,11 @@ fn interpreter() {
     }
     // let node = evaluate(&ast_nodes[&1248], &ast_nodes, 0);
     // println!("{:#?}", node);
-    let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
+    // let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
+    // println!("{:#?}", node);
+    let node = evaluate(&ast_nodes[&1109], &ast_nodes, 0);
     println!("{:#?}", node);
+
 }
 
 #[test]
@@ -246,7 +252,6 @@ fn test_parse_ast_node() {
 
 #[test]
 fn test_node() {
-    // TODO
     let statements = load();
     let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
     for statement in statements.values() {
@@ -257,5 +262,18 @@ fn test_node() {
     let node = evaluate(&ast_nodes[&1248], &ast_nodes, 0);
     println!("{:#?}", node);
     let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
+    println!("{:#?}", node);
+}
+
+#[test]
+fn test_cons() {
+    let statements = load();
+    let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
+    for statement in statements.values() {
+        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
+        assert!(index == statement.cells.len() - 1);
+        ast_nodes.insert(statement.id, node);
+    }
+    let node = evaluate(&ast_nodes[&1109], &ast_nodes, 0);
     println!("{:#?}", node);
 }
