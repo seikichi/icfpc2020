@@ -12,6 +12,10 @@ path = "app/main.rs"
 name = "galaxy_interpreter"
 path = "app/src/galaxy_interpreter.rs"
 
+[[bin]]
+name = "galaxy_transpiler"
+path = "app/src/galaxy_transpiler.rs"
+
 [dependencies]
 tokio = { version = "0.2.21", features = ["macros"] }
 hyper = "0.13.5"
