@@ -106,6 +106,13 @@ struct AstNode {
 }
 
 impl AstNode {
+    #[allow(dead_code)]
+    fn parse_str(s: &str) -> Rc<Self> {
+        let statement = Statement::new(s);
+        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
+        assert!(index == statement.cells.len() - 1);
+        return node;
+    }
     fn parse_cells(cells: &Vec<Function>, cell_index: usize) -> (Rc<Self>, usize) {
         let value = cells[cell_index];
         match value {
@@ -223,6 +230,18 @@ fn interpreter() {
     // println!("{:#?}", node);
     let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
     println!("{:#?}", node);
+}
+
+#[test]
+fn test_parse_ast_node() {
+    let node = AstNode::parse_str(":1248 = ap neg 14");
+    assert!(node.value == Function::Ap);
+    assert!(node.children[0].value == Function::Neg);
+    assert!(node.children[0].children.len() == 0);
+    assert!(node.children[1].value == Function::Number(14));
+    assert!(node.children[1].children.len() == 0);
+    let node = AstNode::parse_str(":1029 = ap ap cons 7 ap ap cons 123229502148636 nil");
+    assert!(node.value == Function::Ap);
 }
 
 #[test]
