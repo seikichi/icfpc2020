@@ -1,7 +1,7 @@
 mod galaxy_interpreter;
 
-use std::thread;
 use galaxy_interpreter::{load, Function, Statement};
+use std::thread;
 
 fn parse_cells(cells: &[Function]) -> (String, &[Function]) {
     match cells[0] {
@@ -27,7 +27,7 @@ fn parse_cells(cells: &[Function]) -> (String, &[Function]) {
         Function::Ap => {
             let (fun, rest1) = parse_cells(&cells[1..]);
             let (arg, rest2) = parse_cells(&rest1);
-            (format!("((force {}) {})", fun, arg), rest2)
+            (format!("(_ap {} {})", fun, arg), rest2)
         }
     }
 }
@@ -45,12 +45,20 @@ fn transpile_statement(s: &Statement) -> String {
 
 fn main() {
     let stack_size = 1024 * 1024 * 1024;
-    let handler = thread::Builder::new().name("transpiler".to_owned()).stack_size(stack_size).spawn(move || {
-        let statements = load();
-        for (id, statement) in statements {
-            println!("(define z{} (lazy {}))", id, transpile_statement(&statement));
-        }
-    }).unwrap();
+    let handler = thread::Builder::new()
+        .name("transpiler".to_owned())
+        .stack_size(stack_size)
+        .spawn(move || {
+            let statements = load();
+            for (id, statement) in statements {
+                println!(
+                    "(define z{} (lazy {}))",
+                    id,
+                    transpile_statement(&statement)
+                );
+            }
+        })
+        .unwrap();
     handler.join().unwrap();
 }
 
@@ -60,7 +68,7 @@ fn test_transpile_statement() {
         (vec![Function::Number(42)], "42"),
         (
             vec![Function::Ap, Function::Neg, Function::Number(42)],
-            "((force _neg) 42)",
+            "(_ap _neg 42)",
         ),
         (
             vec![
@@ -70,7 +78,7 @@ fn test_transpile_statement() {
                 Function::Number(1),
                 Function::Number(1),
             ],
-            "((force ((force _add) 1)) 1)",
+            "(_ap (_ap _add 1) 1)",
         ),
         (
             vec![
@@ -84,9 +92,9 @@ fn test_transpile_statement() {
                 Function::Number(2),
                 Function::Nil,
             ],
-            "((force ((force _cons) 1)) ((force ((force _cons) 2)) _nil))",
+            "(_ap (_ap _cons 1) (_ap (_ap _cons 2) _nil))",
         ),
-        (vec![Function::Variable(42)], "(delay z42)"),
+        (vec![Function::Variable(42)], "z42"),
     ];
 
     for (cells, expected) in cases {
