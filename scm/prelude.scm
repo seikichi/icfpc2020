@@ -1,6 +1,22 @@
 (define (_inc x) (+ (force x) 1))
 (define (_dec x) (- (force x) 1))
 (define _add (lambda (x0) (lambda (x1) (+ (force x0) (force x1)))))
+(define _div (lambda (x0) (lambda (x1) (quotient (force x0) (force x1)))))
+(define _mul (lambda (x0) (lambda (x1) (* (force x0) (force x1)))))
+(define _neg (lambda (x0) (- (force x0))))
+
+(define _eq
+  (lambda (x0)
+    (lambda (x1)
+      (if (= (force x0) (force x1))
+          _t
+          _f))))
+(define _lt
+  (lambda (x0)
+    (lambda (x1)
+      (if (< (force x0) (force x1))
+          _t
+          _f))))
 
 (define _b
   (lambda (x0)
@@ -13,6 +29,14 @@
     (lambda (x1)
       (lambda (x2)
         ((force ((force x0) x2)) x1)))))
+
+(define _s
+  (lambda (x0)
+    (lambda (x1)
+      (lambda (x2)
+        ((force ((force x0) x2)) ((force x1) x2))))))
+
+(define _i (lambda (x0) x0))
 
 (define _f (lambda (x0) (lambda (x1) x1)))
 (define _t (lambda (x0) (lambda (x1) x0)))
@@ -27,6 +51,9 @@
 (define _cdr (lambda (x) ((force x) _f)))
 (define _nil (lambda (x) _t))
 
+;; MEMO: nil が自作されると死ぬ
+(define _isnil (lambda (x) (if (eq? (force x) _nil) _t _f)))
+
 ;; assertions
 (define (assert desc actual expected)
   (if (eq? actual expected)
@@ -38,3 +65,5 @@
 
 (assert "B Combinator" (((_b _inc) _dec) 42) 42)
 (assert "C Combinator" (((_c _add) 1) 2) 3)
+(assert "S Combinator (1)" (((_s _add) _inc) 1) 3)
+(assert "S Combinator (2)" (((_s _mul) (_add 1)) 6) 42)
