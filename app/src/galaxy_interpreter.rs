@@ -181,12 +181,15 @@ fn resolve_ast_node_with_memo(
     ast_nodes: &mut HashMap<i64, Rc<AstNode>>,
     memo: &mut HashMap<Rc<AstNode>, Rc<AstNode>>,
     depth: usize,
+    use_memo: bool,
 ) -> Rc<AstNode> {
-    if memo.contains_key(&node) {
+    if use_memo && memo.contains_key(&node) {
         return memo[&node].clone();
     }
-    let ret = resolve_ast_node(node.clone(), ast_nodes, memo, depth);
-    memo.insert(node, ret.clone());
+    let ret = resolve_ast_node(node.clone(), ast_nodes, memo, depth, use_memo);
+    if use_memo {
+        memo.insert(node, ret.clone());
+    }
     return ret;
 }
 
@@ -195,6 +198,7 @@ fn resolve_ast_node(
     ast_nodes: &mut HashMap<i64, Rc<AstNode>>,
     memo: &mut HashMap<Rc<AstNode>, Rc<AstNode>>,
     depth: usize,
+    use_memo: bool,
 ) -> Rc<AstNode> {
     let wants = need_children(node.value);
     let evaluated_children: Vec<Rc<AstNode>> = node
@@ -206,9 +210,9 @@ fn resolve_ast_node(
                 c.clone()
             } else {
                 match c.value {
-                    Function::Ap => evaluate(c.clone(), ast_nodes, memo, depth),
+                    Function::Ap => evaluate(c.clone(), ast_nodes, memo, depth, use_memo),
                     Function::Variable(id) => {
-                        evaluate(ast_nodes[&id].clone(), ast_nodes, memo, depth)
+                        evaluate(ast_nodes[&id].clone(), ast_nodes, memo, depth, use_memo)
                     }
                     _ => c.clone(),
                 }
@@ -270,7 +274,7 @@ fn resolve_ast_node(
                 value: Function::Ap,
                 children: vec![leaf, node.children[1].clone()],
             });
-            return evaluate(parent, ast_nodes, memo, depth);
+            return evaluate(parent, ast_nodes, memo, depth, use_memo);
         }
         Function::True => {
             return evaluated_children[0].clone();
@@ -283,7 +287,7 @@ fn resolve_ast_node(
                 value: Function::Ap,
                 children: vec![node.children[0].clone(), AstNode::make_leaf(Function::True)],
             });
-            return evaluate(leaf, ast_nodes, memo, depth);
+            return evaluate(leaf, ast_nodes, memo, depth, use_memo);
         }
         Function::Cdr => {
             let leaf = Rc::new(AstNode {
@@ -293,7 +297,7 @@ fn resolve_ast_node(
                     AstNode::make_leaf(Function::False),
                 ],
             });
-            return evaluate(leaf, ast_nodes, memo, depth);
+            return evaluate(leaf, ast_nodes, memo, depth, use_memo);
         }
         Function::Nil => {
             return AstNode::make_leaf(Function::True);
@@ -318,7 +322,7 @@ fn resolve_ast_node(
                 value: Function::Ap,
                 children: vec![leaf, node.children[1].clone()],
             });
-            return evaluate(parent, ast_nodes, memo, depth);
+            return evaluate(parent, ast_nodes, memo, depth, use_memo);
         }
         Function::Bcombinator => {
             let leaf = Rc::new(AstNode {
@@ -329,7 +333,7 @@ fn resolve_ast_node(
                 value: Function::Ap,
                 children: vec![node.children[0].clone(), leaf],
             });
-            return evaluate(parent, ast_nodes, memo, depth);
+            return evaluate(parent, ast_nodes, memo, depth, use_memo);
         }
         Function::Scombinator => {
             let left = Rc::new(AstNode {
@@ -344,7 +348,7 @@ fn resolve_ast_node(
                 value: Function::Ap,
                 children: vec![left, right],
             });
-            return evaluate(parent, ast_nodes, memo, depth);
+            return evaluate(parent, ast_nodes, memo, depth, use_memo);
         }
         _ => unimplemented!(),
     }
@@ -357,6 +361,7 @@ fn evaluate(
     ast_nodes: &mut HashMap<i64, Rc<AstNode>>,
     memo: &mut HashMap<Rc<AstNode>, Rc<AstNode>>,
     depth: usize,
+    use_memo: bool,
 ) -> Rc<AstNode> {
     // if depth > 100100 {
     //     println!("{:#?}", node);
@@ -364,7 +369,13 @@ fn evaluate(
     // }
     match node.value {
         Function::Ap => {
-            let lhs = evaluate(node.children[0].clone(), ast_nodes, memo, depth + 1);
+            let lhs = evaluate(
+                node.children[0].clone(),
+                ast_nodes,
+                memo,
+                depth + 1,
+                use_memo,
+            );
             let rhs = &node.children[1];
             let mut children = lhs.children.clone();
             children.push(rhs.clone());
@@ -380,7 +391,7 @@ fn evaluate(
                 | Function::Isnil
                 | Function::Icombinator => {
                     if ret.children.len() == 1 {
-                        ret = resolve_ast_node_with_memo(ret, ast_nodes, memo, depth + 1);
+                        ret = resolve_ast_node_with_memo(ret, ast_nodes, memo, depth + 1, use_memo);
                     }
                     ret
                 }
@@ -392,7 +403,7 @@ fn evaluate(
                 | Function::True
                 | Function::False => {
                     if ret.children.len() == 2 {
-                        ret = resolve_ast_node_with_memo(ret, ast_nodes, memo, depth + 1);
+                        ret = resolve_ast_node_with_memo(ret, ast_nodes, memo, depth + 1, use_memo);
                     }
                     ret
                 }
@@ -401,7 +412,7 @@ fn evaluate(
                 | Function::Scombinator
                 | Function::Cons => {
                     if ret.children.len() == 3 {
-                        ret = resolve_ast_node_with_memo(ret, ast_nodes, memo, depth + 1);
+                        ret = resolve_ast_node_with_memo(ret, ast_nodes, memo, depth + 1, use_memo);
                     }
                     ret
                 }
@@ -410,9 +421,45 @@ fn evaluate(
         }
         Function::Variable(id) => {
             // println!("{}", id);
-            evaluate(ast_nodes[&id].clone(), ast_nodes, memo, depth + 1)
+            evaluate(ast_nodes[&id].clone(), ast_nodes, memo, depth + 1, use_memo)
         }
         _ => node.clone(),
+    }
+}
+
+fn usual(
+    node: Rc<AstNode>,
+    ast_nodes: &mut HashMap<i64, Rc<AstNode>>,
+    memo: &mut HashMap<Rc<AstNode>, Rc<AstNode>>,
+    depth: usize,
+) -> Rc<AstNode> {
+    let evaluated_children: Vec<Rc<AstNode>> = node
+        .children
+        .iter()
+        .enumerate()
+        .map(|(i, c)| match c.value {
+            Function::Ap => evaluate(c.clone(), ast_nodes, memo, depth + 1, false),
+            _ => c.clone(),
+        })
+        .collect();
+    match node.value {
+        Function::Cons => {
+            let left = usual(node.children[0].clone(), ast_nodes, memo, depth + 1);
+            let right = usual(node.children[1].clone(), ast_nodes, memo, depth + 1);
+            return Rc::new(AstNode {
+                value: Function::Cons,
+                children: vec![left, right],
+            });
+        }
+        Function::Car => {
+            let left = usual(node.children[0].clone(), ast_nodes, memo, depth + 1);
+            return left;
+        }
+        Function::Cdr => {
+            let right = usual(node.children[1].clone(), ast_nodes, memo, depth + 1);
+            return right;
+        }
+        _ => node,
     }
 }
 
@@ -440,7 +487,8 @@ fn interpreter() {
     let s = ":1 = ap ap :0 nil ap ap cons 0 0";
     let mut memo = HashMap::new();
     let node = AstNode::parse_str(s);
-    let node = evaluate(node.clone(), &mut ast_nodes, &mut memo, 0);
+    let node = evaluate(node.clone(), &mut ast_nodes, &mut memo, 0, false);
+    let node = usual(node.clone(), &mut ast_nodes, &mut memo, 0);
     println!("{:#?}", node);
     // let node = evaluate(ast_nodes[&1141].clone(), &mut ast_nodes, &mut memo, 0);
     // println!("{:#?}", node);
@@ -463,12 +511,12 @@ fn test_parse_ast_node() {
 #[test]
 fn test_lazy_evaluation() {
     let node = AstNode::parse_str(":111 = ap add ap ap add 1 2");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Add);
     assert!(node.children[0].value == Function::Ap);
     assert!(node.children[0].children.len() == 2);
     let node = AstNode::parse_str(":112 = ap ap add ap ap add 1 2 3");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Number(6));
     assert!(node.children.len() == 0);
 }
@@ -480,19 +528,19 @@ fn test_lasy_evaluation_cons() {
     ast_nodes.insert(111, node1);
 
     let node = AstNode::parse_str(":112 = ap ap cons ap neg :111 nil");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Cons);
     assert!(node.children[0].value == Function::Ap);
     assert!(node.children[0].children.len() == 2);
 
     let node = AstNode::parse_str(":112 = ap car ap ap cons ap neg 1 :111");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(-1));
 
     let node = AstNode::parse_str(":112 = ap cdr ap ap cons ap neg :111 nil");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Nil);
 }
@@ -504,19 +552,19 @@ fn test_lazy_true_false() {
     ast_nodes.insert(111, node1);
 
     let node = AstNode::parse_str(":111 = ap ap t 0 1");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Number(0));
 
     let node = AstNode::parse_str(":111 = ap ap f 0 1");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Number(1));
 
     let node = AstNode::parse_str(":112 = ap ap t 1 :111");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Number(1));
 
     let node = AstNode::parse_str(":112 = ap ap f :111 1");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Number(1));
 }
 
@@ -527,44 +575,44 @@ fn test_cmp() {
     ast_nodes.insert(111, node1);
 
     let node = AstNode::parse_str(":112 = ap ap lt 0 1");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::True);
     let node = AstNode::parse_str(":112 = ap ap lt 0 0");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::False);
     let node = AstNode::parse_str(":112 = ap ap eq 0 0");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::True);
     let node = AstNode::parse_str(":112 = ap ap eq 1 0");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::False);
 
     let node = AstNode::parse_str(":112 = ap ap eq nil nil");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::True);
 
     let node = AstNode::parse_str(":112 = ap ap eq ap ap cons 1 2 ap ap cons 1 2");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::True);
 
     let node = AstNode::parse_str(":112 = ap ap eq ap ap cons 1 2 ap ap cons 1 3");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::False);
 
     let node = AstNode::parse_str(":112 = ap ap eq i b");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::False);
 
     let node = AstNode::parse_str(":112 = ap ap eq i i");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::True);
 }
@@ -572,10 +620,10 @@ fn test_cmp() {
 #[test]
 fn test_isnil() {
     let node = AstNode::parse_str(":112 = ap isnil nil");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::True);
     let node = AstNode::parse_str(":112 = ap isnil ap ap cons 1 nil");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::False);
     return;
 }
@@ -583,11 +631,11 @@ fn test_isnil() {
 #[test]
 fn test_icombinator() {
     let node = AstNode::parse_str(":112 = ap i 1");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Number(1));
 
     let node = AstNode::parse_str(":112 = ap i i");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Icombinator);
     return;
 }
@@ -595,7 +643,7 @@ fn test_icombinator() {
 #[test]
 fn test_ccombinator() {
     let node = AstNode::parse_str(":112 = ap ap ap c add 1 2");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(3));
     return;
@@ -604,11 +652,11 @@ fn test_ccombinator() {
 #[test]
 fn test_bcombinator() {
     let node = AstNode::parse_str(":112 = ap ap ap b neg neg 2");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(2));
     let node = AstNode::parse_str(":112 = ap ap ap ap b add neg 2 3");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(1));
     return;
@@ -617,7 +665,7 @@ fn test_bcombinator() {
 #[test]
 fn test_scombinator() {
     let node = AstNode::parse_str(":111 = ap ap ap s mul ap add 1 6");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Number(42));
 }
 
@@ -654,19 +702,19 @@ fn test_power2() {
         vec![":112 = ap ap ap s ap ap c ap eq 0 1 ap ap b ap mul 2 ap ap b :111 ap add -1 2"];
     for &s in ans1.iter() {
         let node = AstNode::parse_str(s);
-        let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+        let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
         // println!("{:#?}", node);
         assert!(node.value == Function::Number(1));
     }
     for &s in ans2.iter() {
         let node = AstNode::parse_str(s);
-        let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+        let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
         // println!("{:#?}", node);
         assert!(node.value == Function::Number(2));
     }
     for &s in ans4.iter() {
         let node = AstNode::parse_str(s);
-        let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+        let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
         // println!("{:#?}", node);
         assert!(node.value == Function::Number(4));
     }
@@ -680,16 +728,16 @@ fn test_odd_even() {
     let node2 = AstNode::parse_str(":112 = ap ap cons 2 :111");
     ast_nodes.insert(112, node2);
     let node = AstNode::parse_str(":113 = ap car :111");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(1));
 
     let node = AstNode::parse_str(":113 = ap car ap cdr :111");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(2));
     let node = AstNode::parse_str(":113 = ap car ap cdr ap cdr :111");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(1));
     return;
@@ -705,7 +753,7 @@ fn test_multi_function() {
     let node = AstNode::parse_str(":113 = t");
     ast_nodes.insert(113, node);
     let node = AstNode::parse_str(":114 = :111");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     assert!(node.value == Function::Number(2));
     return;
 }
@@ -713,7 +761,7 @@ fn test_multi_function() {
 #[test]
 fn test_cons_add() {
     let node = AstNode::parse_str(":113 = ap ap ap cons 1 1 add");
-    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0, true);
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(2));
 }
