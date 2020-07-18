@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::convert::From;
+use std::fmt;
 use std::fs;
 use std::rc::Rc;
+use std::thread;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Function {
@@ -100,11 +102,17 @@ pub fn load() -> HashMap<i64, Statement> {
 #[derive(Debug, Eq, PartialEq, Clone)]
 struct AstNode {
     value: Function,
-    left: Option<Rc<AstNode>>,
-    right: Option<Rc<AstNode>>,
+    children: Vec<Rc<AstNode>>,
 }
 
 impl AstNode {
+    #[allow(dead_code)]
+    fn parse_str(s: &str) -> Rc<Self> {
+        let statement = Statement::new(s);
+        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
+        assert!(index == statement.cells.len() - 1);
+        return node;
+    }
     fn parse_cells(cells: &Vec<Function>, cell_index: usize) -> (Rc<Self>, usize) {
         let value = cells[cell_index];
         match value {
@@ -113,24 +121,141 @@ impl AstNode {
                 let (right, cell_index) = AstNode::parse_cells(cells, cell_index + 1);
                 let ret = AstNode {
                     value,
-                    left: Some(left),
-                    right: Some(right),
+                    children: vec![left, right],
                 };
                 (Rc::new(ret), cell_index)
             }
             _ => {
                 let ret = AstNode {
                     value,
-                    left: None,
-                    right: None,
+                    children: vec![],
                 };
                 (Rc::new(ret), cell_index)
             }
         }
     }
+    fn make_leaf(function: Function) -> Rc<Self> {
+        Rc::new(AstNode {
+            value: function,
+            children: vec![],
+        })
+    }
+}
+
+type Result<T> = std::result::Result<T, EvaluateError>;
+#[derive(Debug, Clone)]
+struct EvaluateError;
+impl fmt::Display for EvaluateError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Evaluate Error")
+    }
+}
+
+fn resolve_ast_node(
+    node: Rc<AstNode>,
+    ast_nodes: &HashMap<i64, Rc<AstNode>>,
+    depth: usize,
+) -> Result<Rc<AstNode>> {
+    let evaluated_children: Vec<Rc<AstNode>> = node
+        .children
+        .iter()
+        .map(|c| match c.value {
+            Function::Ap => evaluate(c, ast_nodes, depth).expect("can't evaluate"),
+            Function::Variable(id) => {
+                evaluate(&ast_nodes[&id], ast_nodes, depth).expect("can't evaluate")
+            }
+            _ => c.clone(),
+        })
+        .collect();
+    match node.value {
+        Function::Neg => match evaluated_children[0].value {
+            Function::Number(v) => return Ok(AstNode::make_leaf(Function::Number(-v))),
+            _ => unreachable!(),
+        },
+        Function::Add => {
+            if let Function::Number(lhs) = evaluated_children[0].value {
+                if let Function::Number(rhs) = evaluated_children[1].value {
+                    return Ok(AstNode::make_leaf(Function::Number(lhs + rhs)));
+                }
+            }
+        }
+        Function::Mul => {
+            if let Function::Number(lhs) = evaluated_children[0].value {
+                if let Function::Number(rhs) = evaluated_children[1].value {
+                    return Ok(AstNode::make_leaf(Function::Number(lhs * rhs)));
+                }
+            }
+        }
+        Function::Div => {
+            if let Function::Number(lhs) = evaluated_children[0].value {
+                if let Function::Number(rhs) = evaluated_children[1].value {
+                    return Ok(AstNode::make_leaf(Function::Number(lhs / rhs)));
+                }
+            }
+        }
+        Function::Cons => {
+            return Ok(Rc::new(AstNode {
+                value: node.value,
+                children: evaluated_children,
+            }));
+        }
+        _ => unimplemented!(),
+    }
+    panic!("invalid status");
+}
+
+fn evaluate(
+    node: &Rc<AstNode>,
+    ast_nodes: &HashMap<i64, Rc<AstNode>>,
+    depth: usize,
+) -> Result<Rc<AstNode>> {
+    if depth > 10 {
+        return Err(EvaluateError);
+    }
+    match node.value {
+        Function::Ap => {
+            let lhs = evaluate(&node.children[0], ast_nodes, depth + 1)?;
+            let rhs = &node.children[1];
+            let mut children = lhs.children.clone();
+            children.push(rhs.clone());
+            let mut ret = Rc::new(AstNode {
+                value: lhs.value,
+                children: children,
+            });
+            match lhs.value {
+                Function::Neg => {
+                    if ret.children.len() == 1 {
+                        ret = resolve_ast_node(ret, ast_nodes, depth).expect("can't resolve");
+                    }
+                    Ok(ret)
+                }
+                Function::Add | Function::Mul | Function::Div | Function::Cons => {
+                    if ret.children.len() == 2 {
+                        ret = resolve_ast_node(ret, ast_nodes, depth).expect("can't resolve");
+                    }
+                    Ok(ret)
+                }
+                _ => unimplemented!(),
+            }
+        }
+        Function::Variable(id) => Ok(evaluate(&ast_nodes[&id], ast_nodes, depth + 1)?),
+        _ => Ok(node.clone()),
+    }
 }
 
 fn main() {
+    let stack_size = 1024 * 1024 * 1024;
+    let handler = thread::Builder::new()
+        .name("interpreter".to_owned())
+        .stack_size(stack_size)
+        .spawn(move || {
+            interpreter();
+        })
+        .unwrap();
+    handler.join().unwrap();
+}
+
+fn interpreter() {
     let statements = load();
     let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
     for statement in statements.values() {
@@ -138,4 +263,63 @@ fn main() {
         assert!(index == statement.cells.len() - 1);
         ast_nodes.insert(statement.id, node);
     }
+    let node = evaluate(&ast_nodes[&1248], &ast_nodes, 0);
+    println!("{:#?}", node);
+    // let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
+    // println!("{:#?}", node);
+    // let node = evaluate(&ast_nodes[&1109], &ast_nodes, 0);
+    // println!("{:#?}", node);
+}
+
+#[test]
+fn test_parse_ast_node() {
+    let node = AstNode::parse_str(":1248 = ap neg 14");
+    assert!(node.value == Function::Ap);
+    assert!(node.children[0].value == Function::Neg);
+    assert!(node.children[0].children.len() == 0);
+    assert!(node.children[1].value == Function::Number(14));
+    assert!(node.children[1].children.len() == 0);
+    let node = AstNode::parse_str(":1029 = ap ap cons 7 ap ap cons 123229502148636 nil");
+    assert!(node.value == Function::Ap);
+}
+
+#[test]
+fn test_lazy_evaluation() {
+    let node = AstNode::parse_str(":111 = ap add ap ap add 1 2");
+    let node = evaluate(&node, &HashMap::new(), 0).expect("hoge");
+    assert!(node.value == Function::Add);
+    assert!(node.children[0].value == Function::Ap);
+    assert!(node.children[0].children.len() == 2);
+    let node = AstNode::parse_str(":112 = ap ap add ap ap add 1 2 3");
+    let node = evaluate(&node, &HashMap::new(), 0).expect("hoge");
+    assert!(node.value == Function::Number(6));
+    assert!(node.children.len() == 0);
+}
+
+#[test]
+fn test_node() {
+    let statements = load();
+    let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
+    for statement in statements.values() {
+        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
+        assert!(index == statement.cells.len() - 1);
+        ast_nodes.insert(statement.id, node);
+    }
+    let node = evaluate(&ast_nodes[&1248], &ast_nodes, 0);
+    println!("{:#?}", node);
+    let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
+    println!("{:#?}", node);
+}
+
+#[test]
+fn test_cons() {
+    let statements = load();
+    let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
+    for statement in statements.values() {
+        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
+        assert!(index == statement.cells.len() - 1);
+        ast_nodes.insert(statement.id, node);
+    }
+    let node = evaluate(&ast_nodes[&1109], &ast_nodes, 0);
+    println!("{:#?}", node);
 }
