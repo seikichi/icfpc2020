@@ -72,6 +72,7 @@ pub struct Statement {
 
 impl Statement {
     pub fn new(s: &str) -> Self {
+        let s = s.trim();
         let items: Vec<&str> = s.split(" ").collect();
         let id = if items[0] == "galaxy" {
             0
@@ -155,6 +156,7 @@ fn need_children(function: Function) -> Vec<usize> {
         Function::True => vec![0],
         Function::False => vec![1],
         Function::Icombinator => vec![0],
+        Function::Bcombinator => vec![],
         Function::Ccombinator => vec![],
         _ => unimplemented!(),
     }
@@ -264,12 +266,26 @@ fn resolve_ast_node(
             return evaluated_children[0].clone();
         }
         Function::Ccombinator => {
-            let children = vec![node.children[2].clone(), node.children[1].clone()];
             let leaf = Rc::new(AstNode {
-                value: node.children[0].value,
-                children: children,
+                value: Function::Ap,
+                children: vec![node.children[0].clone(), node.children[2].clone()],
             });
-            return resolve_ast_node(leaf, ast_nodes, depth);
+            let parent = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![leaf, node.children[1].clone()],
+            });
+            return evaluate(parent, ast_nodes, depth);
+        }
+        Function::Bcombinator => {
+            let leaf = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![node.children[1].clone(), node.children[2].clone()],
+            });
+            let parent = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![node.children[0].clone(), leaf],
+            });
+            return evaluate(parent, ast_nodes, depth);
         }
         _ => unimplemented!(),
     }
@@ -314,7 +330,7 @@ fn evaluate(node: Rc<AstNode>, ast_nodes: &HashMap<i64, Rc<AstNode>>, depth: usi
                     }
                     ret
                 }
-                Function::Ccombinator => {
+                Function::Ccombinator | Function::Bcombinator => {
                     if ret.children.len() == 3 {
                         ret = resolve_ast_node(ret, ast_nodes, depth);
                     }
@@ -479,7 +495,20 @@ fn test_icombinator() {
 fn test_ccombinator() {
     let node = AstNode::parse_str(":112 = ap ap ap c add 1 2");
     let node = evaluate(node, &HashMap::new(), 0);
-    println!("{:#?}", node);
+    // println!("{:#?}", node);
     assert!(node.value == Function::Number(3));
+    return;
+}
+
+#[test]
+fn test_bcombinator() {
+    let node = AstNode::parse_str(":112 = ap ap ap b neg neg 2");
+    let node = evaluate(node, &HashMap::new(), 0);
+    // println!("{:#?}", node);
+    assert!(node.value == Function::Number(2));
+    let node = AstNode::parse_str(":112 = ap ap ap ap b add neg 2 3");
+    let node = evaluate(node, &HashMap::new(), 0);
+    // println!("{:#?}", node);
+    assert!(node.value == Function::Number(1));
     return;
 }
