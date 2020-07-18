@@ -15,8 +15,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = Client::new();
     let req = Request::builder()
         .method(Method::POST)
-        .uri(format!("{}/aliens/send", server_url))
-        .body(Body::from(format!("1101000")))?;
+        .uri(format!("{}", server_url))
+        .body(Body::from(format!("-71253675521")))?;
 
     match client.request(req).await {
         Ok(mut res) => match res.status() {
