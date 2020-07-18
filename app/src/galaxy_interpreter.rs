@@ -438,25 +438,25 @@ fn usual(
         .iter()
         .enumerate()
         .map(|(i, c)| match c.value {
-            Function::Ap => evaluate(c.clone(), ast_nodes, memo, depth + 1, false),
+            Function::Ap => evaluate(c.clone(), ast_nodes, memo, depth + 1, true),
             _ => c.clone(),
         })
         .collect();
     match node.value {
         Function::Cons => {
-            let left = usual(node.children[0].clone(), ast_nodes, memo, depth + 1);
-            let right = usual(node.children[1].clone(), ast_nodes, memo, depth + 1);
+            let left = usual(evaluated_children[0].clone(), ast_nodes, memo, depth + 1);
+            let right = usual(evaluated_children[1].clone(), ast_nodes, memo, depth + 1);
             return Rc::new(AstNode {
                 value: Function::Cons,
                 children: vec![left, right],
             });
         }
         Function::Car => {
-            let left = usual(node.children[0].clone(), ast_nodes, memo, depth + 1);
+            let left = usual(evaluated_children[0].clone(), ast_nodes, memo, depth + 1);
             return left;
         }
         Function::Cdr => {
-            let right = usual(node.children[1].clone(), ast_nodes, memo, depth + 1);
+            let right = usual(evaluated_children[1].clone(), ast_nodes, memo, depth + 1);
             return right;
         }
         _ => node,
@@ -487,7 +487,7 @@ fn interpreter() {
     let s = ":1 = ap ap :0 nil ap ap cons 0 0";
     let mut memo = HashMap::new();
     let node = AstNode::parse_str(s);
-    let node = evaluate(node.clone(), &mut ast_nodes, &mut memo, 0, false);
+    let node = evaluate(node.clone(), &mut ast_nodes, &mut memo, 0, true);
     let node = usual(node.clone(), &mut ast_nodes, &mut memo, 0);
     println!("{:#?}", node);
     // let node = evaluate(ast_nodes[&1141].clone(), &mut ast_nodes, &mut memo, 0);
