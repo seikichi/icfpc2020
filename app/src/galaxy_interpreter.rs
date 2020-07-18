@@ -142,22 +142,15 @@ impl AstNode {
     }
 }
 
-type Result<T> = std::result::Result<T, EvaluateError>;
-#[derive(Debug, Clone)]
-struct EvaluateError;
-impl fmt::Display for EvaluateError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Evaluate Error")
-    }
-}
-
 fn need_children(function: Function) -> Vec<usize> {
     match function {
         Function::Neg => vec![0],
         Function::Add | Function::Mul | Function::Div => vec![0, 1],
         Function::Cons => vec![],
         Function::Car => vec![0],
-        Function::Cdr => vec![1],
+        Function::Cdr => vec![0],
+        Function::True => vec![0],
+        Function::False => vec![1],
         _ => unimplemented!(),
     }
 }
@@ -166,7 +159,7 @@ fn resolve_ast_node(
     node: Rc<AstNode>,
     ast_nodes: &HashMap<i64, Rc<AstNode>>,
     depth: usize,
-) -> Result<Rc<AstNode>> {
+) -> Rc<AstNode> {
     let wants = need_children(node.value);
     let evaluated_children: Vec<Rc<AstNode>> = node
         .children
@@ -177,10 +170,8 @@ fn resolve_ast_node(
                 c.clone()
             } else {
                 match c.value {
-                    Function::Ap => evaluate(c, ast_nodes, depth).expect("can't evaluate"),
-                    Function::Variable(id) => {
-                        evaluate(&ast_nodes[&id], ast_nodes, depth).expect("can't evaluate")
-                    }
+                    Function::Ap => evaluate(c.clone(), ast_nodes, depth),
+                    Function::Variable(id) => evaluate(ast_nodes[&id].clone(), ast_nodes, depth),
                     _ => c.clone(),
                 }
             }
@@ -188,58 +179,62 @@ fn resolve_ast_node(
         .collect();
     match node.value {
         Function::Neg => match evaluated_children[0].value {
-            Function::Number(v) => return Ok(AstNode::make_leaf(Function::Number(-v))),
+            Function::Number(v) => return AstNode::make_leaf(Function::Number(-v)),
             _ => unreachable!(),
         },
         Function::Add => {
             if let Function::Number(lhs) = evaluated_children[0].value {
                 if let Function::Number(rhs) = evaluated_children[1].value {
-                    return Ok(AstNode::make_leaf(Function::Number(lhs + rhs)));
+                    return AstNode::make_leaf(Function::Number(lhs + rhs));
                 }
             }
         }
         Function::Mul => {
             if let Function::Number(lhs) = evaluated_children[0].value {
                 if let Function::Number(rhs) = evaluated_children[1].value {
-                    return Ok(AstNode::make_leaf(Function::Number(lhs * rhs)));
+                    return AstNode::make_leaf(Function::Number(lhs * rhs));
                 }
             }
         }
         Function::Div => {
             if let Function::Number(lhs) = evaluated_children[0].value {
                 if let Function::Number(rhs) = evaluated_children[1].value {
-                    return Ok(AstNode::make_leaf(Function::Number(lhs / rhs)));
+                    return AstNode::make_leaf(Function::Number(lhs / rhs));
                 }
             }
         }
         Function::Cons => {
-            return Ok(Rc::new(AstNode {
+            return Rc::new(AstNode {
                 value: node.value,
                 children: evaluated_children,
-            }));
+            });
+        }
+        Function::True => {
+            return evaluated_children[0].clone();
+        }
+        Function::False => {
+            return evaluated_children[1].clone();
         }
         Function::Car => {
-            return Ok(evaluated_children[0].clone());
+            let cons_cell = evaluated_children[0].clone();
+            return evaluate(cons_cell.children[0].clone(), ast_nodes, depth);
         }
         Function::Cdr => {
-            return Ok(evaluated_children[1].clone());
+            let cons_cell = evaluated_children[0].clone();
+            return evaluate(cons_cell.children[1].clone(), ast_nodes, depth);
         }
         _ => unimplemented!(),
     }
     panic!("invalid status");
 }
 
-fn evaluate(
-    node: &Rc<AstNode>,
-    ast_nodes: &HashMap<i64, Rc<AstNode>>,
-    depth: usize,
-) -> Result<Rc<AstNode>> {
-    if depth > 10 {
-        return Err(EvaluateError);
+fn evaluate(node: Rc<AstNode>, ast_nodes: &HashMap<i64, Rc<AstNode>>, depth: usize) -> Rc<AstNode> {
+    if depth > 100 {
+        panic!("too deep!!")
     }
     match node.value {
         Function::Ap => {
-            let lhs = evaluate(&node.children[0], ast_nodes, depth + 1)?;
+            let lhs = evaluate(node.children[0].clone(), ast_nodes, depth + 1);
             let rhs = &node.children[1];
             let mut children = lhs.children.clone();
             children.push(rhs.clone());
@@ -250,21 +245,26 @@ fn evaluate(
             match lhs.value {
                 Function::Neg | Function::Car | Function::Cdr => {
                     if ret.children.len() == 1 {
-                        ret = resolve_ast_node(ret, ast_nodes, depth).expect("can't resolve");
+                        ret = resolve_ast_node(ret, ast_nodes, depth);
                     }
-                    Ok(ret)
+                    ret
                 }
-                Function::Add | Function::Mul | Function::Div | Function::Cons => {
+                Function::Add
+                | Function::Mul
+                | Function::Div
+                | Function::Cons
+                | Function::True
+                | Function::False => {
                     if ret.children.len() == 2 {
-                        ret = resolve_ast_node(ret, ast_nodes, depth).expect("can't resolve");
+                        ret = resolve_ast_node(ret, ast_nodes, depth)
                     }
-                    Ok(ret)
+                    ret
                 }
                 _ => unimplemented!(),
             }
         }
-        Function::Variable(id) => Ok(evaluate(&ast_nodes[&id], ast_nodes, depth + 1)?),
-        _ => Ok(node.clone()),
+        Function::Variable(id) => evaluate(ast_nodes[&id].clone(), ast_nodes, depth + 1),
+        _ => node.clone(),
     }
 }
 
@@ -288,11 +288,11 @@ fn interpreter() {
         assert!(index == statement.cells.len() - 1);
         ast_nodes.insert(statement.id, node);
     }
-    let node = evaluate(&ast_nodes[&1248], &ast_nodes, 0);
+    let node = evaluate(ast_nodes[&1248].clone(), &ast_nodes, 0);
     println!("{:#?}", node);
-    // let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
+    // let node = evaluate(&ast_nodes[&1251].clone(), &ast_nodes, 0);
     // println!("{:#?}", node);
-    // let node = evaluate(&ast_nodes[&1109], &ast_nodes, 0);
+    // let node = evaluate(&ast_nodes[&1109].clone(), &ast_nodes, 0);
     // println!("{:#?}", node);
 }
 
@@ -311,12 +311,12 @@ fn test_parse_ast_node() {
 #[test]
 fn test_lazy_evaluation() {
     let node = AstNode::parse_str(":111 = ap add ap ap add 1 2");
-    let node = evaluate(&node, &HashMap::new(), 0).expect("hoge");
+    let node = evaluate(node, &HashMap::new(), 0);
     assert!(node.value == Function::Add);
     assert!(node.children[0].value == Function::Ap);
     assert!(node.children[0].children.len() == 2);
     let node = AstNode::parse_str(":112 = ap ap add ap ap add 1 2 3");
-    let node = evaluate(&node, &HashMap::new(), 0).expect("hoge");
+    let node = evaluate(node, &HashMap::new(), 0);
     assert!(node.value == Function::Number(6));
     assert!(node.children.len() == 0);
 }
@@ -324,37 +324,19 @@ fn test_lazy_evaluation() {
 #[test]
 fn test_lasy_evaluation_cons() {
     let node = AstNode::parse_str(":111 = ap ap cons ap neg 1 nil");
-    let node = evaluate(&node, &HashMap::new(), 0).expect("hoge");
+    let node = evaluate(node, &HashMap::new(), 0);
     // println!("{:#?}", node);
     assert!(node.value == Function::Cons);
     assert!(node.children[0].value == Function::Ap);
     assert!(node.children[0].children.len() == 2);
-}
 
-#[test]
-fn test_node() {
-    let statements = load();
-    let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
-    for statement in statements.values() {
-        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
-        assert!(index == statement.cells.len() - 1);
-        ast_nodes.insert(statement.id, node);
-    }
-    let node = evaluate(&ast_nodes[&1248], &ast_nodes, 0);
+    let node = AstNode::parse_str(":111 = ap car ap ap cons ap neg 1 nil");
+    let node = evaluate(node, &HashMap::new(), 0);
     println!("{:#?}", node);
-    let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
-    println!("{:#?}", node);
-}
+    assert!(node.value == Function::Number(-1));
 
-#[test]
-fn test_cons() {
-    let statements = load();
-    let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
-    for statement in statements.values() {
-        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
-        assert!(index == statement.cells.len() - 1);
-        ast_nodes.insert(statement.id, node);
-    }
-    let node = evaluate(&ast_nodes[&1109], &ast_nodes, 0);
+    let node = AstNode::parse_str(":111 = ap cdr ap ap cons ap neg 1 nil");
+    let node = evaluate(node, &HashMap::new(), 0);
     println!("{:#?}", node);
+    assert!(node.value == Function::Nil);
 }
