@@ -132,8 +132,10 @@ impl AstNode {
 
 fn main() {
     let statements = load();
-    let (node, index) = AstNode::parse_cells(&statements[&1029].cells, 0);
-    println!("{:?}", statements[&1029]);
-    println!("{:?} {}", node, index);
-    // for &statement in statements.iter() {}
+    let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
+    for statement in statements.values() {
+        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
+        assert!(index == statement.cells.len() - 1);
+        ast_nodes.insert(statement.id, node);
+    }
 }
