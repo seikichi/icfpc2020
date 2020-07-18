@@ -23,7 +23,7 @@ fn parse_cells(cells: &[Function]) -> (String, &[Function]) {
         Function::Icombinator => ("_i".to_string(), &cells[1..]),
         Function::True => ("_t".to_string(), &cells[1..]),
         Function::False => ("_f".to_string(), &cells[1..]),
-        Function::Variable(i) => (format!("(delay z{})", i), &cells[1..]),
+        Function::Variable(i) => (format!("z{}", i), &cells[1..]),
         Function::Ap => {
             let (fun, rest1) = parse_cells(&cells[1..]);
             let (arg, rest2) = parse_cells(&rest1);
@@ -48,8 +48,7 @@ fn main() {
     let handler = thread::Builder::new().name("transpiler".to_owned()).stack_size(stack_size).spawn(move || {
         let statements = load();
         for (id, statement) in statements {
-            println!("statement length = {}", statement.cells.len());
-            println!("(define z{} {})", id, transpile_statement(&statement));
+            println!("(define z{} (lazy {}))", id, transpile_statement(&statement));
         }
     }).unwrap();
     handler.join().unwrap();
