@@ -149,8 +149,8 @@ fn need_children(function: Function) -> Vec<usize> {
             vec![0, 1]
         }
         Function::Cons => vec![],
-        Function::Car => vec![0],
-        Function::Cdr => vec![0],
+        Function::Car => vec![],
+        Function::Cdr => vec![],
         Function::Isnil => vec![0],
         Function::True => vec![0],
         Function::False => vec![1],
@@ -261,10 +261,15 @@ fn resolve_ast_node(
             return AstNode::make_leaf(ret);
         }
         Function::Cons => {
-            return Rc::new(AstNode {
-                value: node.value,
-                children: evaluated_children,
+            let leaf = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![node.children[2].clone(), node.children[0].clone()],
             });
+            let parent = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![leaf, node.children[1].clone()],
+            });
+            return evaluate(parent, ast_nodes, memo, depth);
         }
         Function::True => {
             return evaluated_children[0].clone();
@@ -273,12 +278,21 @@ fn resolve_ast_node(
             return evaluated_children[1].clone();
         }
         Function::Car => {
-            let cons_cell = evaluated_children[0].clone();
-            return evaluate(cons_cell.children[0].clone(), ast_nodes, memo, depth);
+            let leaf = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![node.children[0].clone(), AstNode::make_leaf(Function::True)],
+            });
+            return evaluate(leaf, ast_nodes, memo, depth);
         }
         Function::Cdr => {
-            let cons_cell = evaluated_children[0].clone();
-            return evaluate(cons_cell.children[1].clone(), ast_nodes, memo, depth);
+            let leaf = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![
+                    node.children[0].clone(),
+                    AstNode::make_leaf(Function::False),
+                ],
+            });
+            return evaluate(leaf, ast_nodes, memo, depth);
         }
         Function::Isnil => {
             let ret = if evaluated_children[0].value == Function::Nil {
@@ -368,7 +382,6 @@ fn evaluate(
                 Function::Add
                 | Function::Mul
                 | Function::Div
-                | Function::Cons
                 | Function::Lt
                 | Function::Equal
                 | Function::True
@@ -378,7 +391,10 @@ fn evaluate(
                     }
                     ret
                 }
-                Function::Ccombinator | Function::Bcombinator | Function::Scombinator => {
+                Function::Ccombinator
+                | Function::Bcombinator
+                | Function::Scombinator
+                | Function::Cons => {
                     if ret.children.len() == 3 {
                         ret = resolve_ast_node_with_memo(ret, ast_nodes, memo, depth + 1);
                     }
