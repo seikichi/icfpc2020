@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+
+from PIL import Image
+
+s =  [
+ ' #######',
+ '##      ',
+ '#  ###  ',
+ '###  ## ',
+ '#   ### ',
+ '##  #   ',
+ '# #     ',
+ '#       ',
+ '#       ',
+]
+
+image = Image.new(mode='1', (len(s[0]), len(s)), False)
+
+def decode_number(img, x, y):
+    if img[x - 1, y - 1] or img[x, y - 1] or img[x - 1, y] or img[x, y]:
+        return None
+
+    # Get the size by iterating over top and left edges
+    size = 0
+    negative = False
+    while True:
+        items = (
+            img[x + size + 1, y - 1],
+            img[x + size + 1, y],
+            img[x - 1, y + size + 1],
+            img[x, y + size + 1],
+        )
+        if items == (False, True, False, True):
+            size += 1
+            continue
+        if items == (False, False, False, False):
+            break
+        if items == (False, False, False, True):
+            negative = True
+            break
+        return None
+
+    if size == 0:
+        return None
+
+    # Check that right and bottom edges are empty
+    for i in range(1,size + 2):
+        if img[x + size + 1, y+i] or img[x+i, y + size + 1]:
+            return None
+
+    # Decode the number
+    result, d = 0, 1
+    for iy in range(size):
+        for ix in range(size):
+            result += d * img[x + ix + 1, y + iy + 1]
+            d *= 2
+
+    if negative:
+        result = -result
+
+    return (size, size+negative), result
+ 
