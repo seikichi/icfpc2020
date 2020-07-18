@@ -437,7 +437,7 @@ fn usual(
         .children
         .iter()
         .enumerate()
-        .map(|(i, c)| match c.value {
+        .map(|(_i, c)| match c.value {
             Function::Ap => evaluate(c.clone(), ast_nodes, memo, depth + 1, true),
             Function::Variable(id) => {
                 evaluate(ast_nodes[&id].clone(), ast_nodes, memo, depth + 1, true)
