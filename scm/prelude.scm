@@ -45,7 +45,7 @@
   (lambda (x0)
     (lambda (x1)
       (lambda (x2)
-        ((x2 x0) x1)))))
+        ((force ((force x2) x0)) x1)))))
 
 (define _car (lambda (x) ((force x) _t)))
 (define _cdr (lambda (x) ((force x) _f)))
