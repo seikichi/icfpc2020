@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::convert::From;
+use std::fmt;
 use std::fs;
 use std::rc::Rc;
+use std::thread;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Function {
@@ -100,8 +102,7 @@ pub fn load() -> HashMap<i64, Statement> {
 #[derive(Debug, Eq, PartialEq, Clone)]
 struct AstNode {
     value: Function,
-    left: Option<Rc<AstNode>>,
-    right: Option<Rc<AstNode>>,
+    children: Vec<Rc<AstNode>>,
 }
 
 impl AstNode {
@@ -113,24 +114,104 @@ impl AstNode {
                 let (right, cell_index) = AstNode::parse_cells(cells, cell_index + 1);
                 let ret = AstNode {
                     value,
-                    left: Some(left),
-                    right: Some(right),
+                    children: vec![left, right],
                 };
                 (Rc::new(ret), cell_index)
             }
             _ => {
                 let ret = AstNode {
                     value,
-                    left: None,
-                    right: None,
+                    children: vec![],
                 };
                 (Rc::new(ret), cell_index)
             }
         }
     }
+    fn make_leaf(function: Function) -> Rc<Self> {
+        Rc::new(AstNode {
+            value: function,
+            children: vec![],
+        })
+    }
+}
+
+type Result<T> = std::result::Result<T, EvaluateError>;
+#[derive(Debug, Clone)]
+struct EvaluateError;
+impl fmt::Display for EvaluateError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Evaluate Error")
+    }
+}
+
+fn resolve_ast_node(node: Rc<AstNode>) -> Rc<AstNode> {
+    match node.value {
+        Function::Add => {
+            if let Function::Number(lhs) = node.children[0].value {
+                if let Function::Number(rhs) = node.children[1].value {
+                    return AstNode::make_leaf(Function::Number(lhs + rhs));
+                }
+            }
+        }
+        _ => unimplemented!(),
+    }
+    panic!("invalid status");
+}
+
+fn evaluate(
+    node: &Rc<AstNode>,
+    ast_nodes: &HashMap<i64, Rc<AstNode>>,
+    depth: usize,
+) -> Result<Rc<AstNode>> {
+    if depth > 10 {
+        return Err(EvaluateError);
+    }
+    match node.value {
+        Function::Ap => {
+            let lhs = evaluate(&node.children[0], ast_nodes, depth + 1)?;
+            let rhs = evaluate(&node.children[1], ast_nodes, depth + 1)?;
+            match lhs.value {
+                Function::Neg => {
+                    if let Function::Number(value) = rhs.value {
+                        Ok(AstNode::make_leaf(Function::Number(-value)))
+                    } else {
+                        let message = format!("{:?} can't Neg non-number", rhs);
+                        panic!(message);
+                    }
+                }
+                Function::Add => {
+                    let mut children = lhs.children.clone();
+                    children.push(rhs.clone());
+                    let mut ret = Rc::new(AstNode {
+                        value: lhs.value,
+                        children: children,
+                    });
+                    if ret.children.len() == 2 {
+                        ret = resolve_ast_node(ret);
+                    }
+                    Ok(ret)
+                }
+                _ => unimplemented!(),
+            }
+        }
+        Function::Variable(id) => Ok(evaluate(&ast_nodes[&id], ast_nodes, depth + 1)?),
+        _ => Ok(node.clone()),
+    }
 }
 
 fn main() {
+    let stack_size = 1024 * 1024 * 1024;
+    let handler = thread::Builder::new()
+        .name("interpreter".to_owned())
+        .stack_size(stack_size)
+        .spawn(move || {
+            interpreter();
+        })
+        .unwrap();
+    handler.join().unwrap();
+}
+
+fn interpreter() {
     let statements = load();
     let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
     for statement in statements.values() {
@@ -138,4 +219,24 @@ fn main() {
         assert!(index == statement.cells.len() - 1);
         ast_nodes.insert(statement.id, node);
     }
+    // let node = evaluate(&ast_nodes[&1248], &ast_nodes, 0);
+    // println!("{:#?}", node);
+    let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
+    println!("{:#?}", node);
+}
+
+#[test]
+fn test_node() {
+    // TODO
+    let statements = load();
+    let mut ast_nodes = HashMap::<i64, Rc<AstNode>>::new();
+    for statement in statements.values() {
+        let (node, index) = AstNode::parse_cells(&statement.cells, 0);
+        assert!(index == statement.cells.len() - 1);
+        ast_nodes.insert(statement.id, node);
+    }
+    let node = evaluate(&ast_nodes[&1248], &ast_nodes, 0);
+    println!("{:#?}", node);
+    let node = evaluate(&ast_nodes[&1251], &ast_nodes, 0);
+    println!("{:#?}", node);
 }
