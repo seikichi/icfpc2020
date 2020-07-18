@@ -100,3 +100,47 @@
         ((eq? x _f) #f)
         ((eq? (_isnil x) _t) '())
         (else (cons (_usual (_car x)) (_usual (_cdr x))))))
+
+;; Plotting
+(use gauche.collection)
+(use gauche.array)
+(define (_draw points)
+  (define x-max
+    (find-max (map (lambda (point) (car point)) points)))
+  (define x-min
+    (find-min (map (lambda (point) (car point)) points)))
+  (define y-max
+    (find-max (map (lambda (point) (cdr point)) points)))
+  (define y-min
+    (find-min (map (lambda (point) (cdr point)) points)))
+  (define canvas
+    (make-array (shape y-min (+ y-max 1) x-min (+ x-max 1)) #f))
+  (define (loop-y y)
+    (loop-x y x-min)
+    (write-char #\newline)
+    (if (= y y-max)
+      #t
+      (loop-y (+ y 1))))
+  (define (loop-x y x)
+    (if (array-ref canvas y x)
+      (write-char #\#)
+      (write-char #\space))
+    (if (= x x-max)
+      #t
+      (loop-x y (+ x 1))))
+  (for-each
+    (lambda (point)
+      (array-set! canvas (cdr point) (car point) #t))
+    points)
+  (loop-y y-min))
+
+(define (_multipledraw points-list)
+  (for-each
+    (lambda (points)
+      (_draw points)
+      (print "---------"))
+    points-list))
+
+;(define points1 '( (1 . 1) (2 . 1) (3 . 1) (-1 . -1) ))
+;(define points2 '( (0 . 0) (0 . 1) (1 . 1) ))
+;(_multipledraw (list points1 points2))
