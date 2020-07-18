@@ -3,7 +3,7 @@ use std::convert::From;
 use std::fs;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-enum Function {
+pub enum Function {
     Ap,
     Cons,
     Car,
@@ -62,13 +62,13 @@ impl From<&str> for Function {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-struct Statement {
-    id: i64,
-    cells: Vec<Function>,
+pub struct Statement {
+    pub id: i64,
+    pub cells: Vec<Function>,
 }
 
 impl Statement {
-    fn new(s: &str) -> Self {
+    pub fn new(s: &str) -> Self {
         let items: Vec<&str> = s.split(" ").collect();
         let id = if items[0] == "galaxy" {
             0
@@ -85,7 +85,7 @@ impl Statement {
     }
 }
 
-fn load() -> HashMap<i64, Statement> {
+pub fn load() -> HashMap<i64, Statement> {
     fs::read_to_string("resource/galaxy.txt")
         .unwrap()
         .split("\n")
