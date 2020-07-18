@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::convert::From;
-use std::fmt;
 use std::fs;
 use std::rc::Rc;
 use std::thread;
@@ -396,6 +395,7 @@ fn evaluate(
     }
 }
 
+#[allow(dead_code)]
 fn main() {
     let stack_size = 1024 * 1024 * 1024;
     let handler = thread::Builder::new()
