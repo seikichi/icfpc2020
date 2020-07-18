@@ -323,20 +323,46 @@ fn test_lazy_evaluation() {
 
 #[test]
 fn test_lasy_evaluation_cons() {
-    let node = AstNode::parse_str(":111 = ap ap cons ap neg 1 nil");
-    let node = evaluate(node, &HashMap::new(), 0);
+    let node1 = AstNode::parse_str(":111 = :111");
+    let mut ast_nodes = HashMap::new();
+    ast_nodes.insert(111, node1);
+
+    let node = AstNode::parse_str(":112 = ap ap cons ap neg :111 nil");
+    let node = evaluate(node, &ast_nodes, 0);
     // println!("{:#?}", node);
     assert!(node.value == Function::Cons);
     assert!(node.children[0].value == Function::Ap);
     assert!(node.children[0].children.len() == 2);
 
-    let node = AstNode::parse_str(":111 = ap car ap ap cons ap neg 1 nil");
-    let node = evaluate(node, &HashMap::new(), 0);
-    println!("{:#?}", node);
+    let node = AstNode::parse_str(":112 = ap car ap ap cons ap neg 1 :111");
+    let node = evaluate(node, &ast_nodes, 0);
+    // println!("{:#?}", node);
     assert!(node.value == Function::Number(-1));
 
-    let node = AstNode::parse_str(":111 = ap cdr ap ap cons ap neg 1 nil");
-    let node = evaluate(node, &HashMap::new(), 0);
-    println!("{:#?}", node);
+    let node = AstNode::parse_str(":112 = ap cdr ap ap cons ap neg :111 nil");
+    let node = evaluate(node, &ast_nodes, 0);
+    // println!("{:#?}", node);
     assert!(node.value == Function::Nil);
+}
+
+fn test_lazy_true_false() {
+    let node1 = AstNode::parse_str(":111 = :111");
+    let mut ast_nodes = HashMap::new();
+    ast_nodes.insert(111, node1);
+
+    let node = AstNode::parse_str(":111 = ap ap t 0 1");
+    let node = evaluate(node, &HashMap::new(), 0);
+    assert!(node.value == Function::Number(0));
+
+    let node = AstNode::parse_str(":111 = ap ap f 0 1");
+    let node = evaluate(node, &HashMap::new(), 0);
+    assert!(node.value == Function::Number(1));
+
+    let node = AstNode::parse_str(":112 = ap ap t 1 :111");
+    let node = evaluate(node, &ast_nodes, 0);
+    assert!(node.value == Function::Number(1));
+
+    let node = AstNode::parse_str(":112 = ap ap f :111 1");
+    let node = evaluate(node, &ast_nodes, 0);
+    assert!(node.value == Function::Number(1));
 }
