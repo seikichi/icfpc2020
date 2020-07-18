@@ -535,3 +535,54 @@ fn test_scombinator() {
     let node = evaluate(node, &HashMap::new(), 0);
     assert!(node.value == Function::Number(42));
 }
+
+#[test]
+fn test_power2() {
+    let node1 = AstNode::parse_str(
+        ":111 = ap ap s ap ap c ap eq 0 1 ap ap b ap mul 2 ap ap b :111 ap add -1",
+    );
+    let mut ast_nodes = HashMap::new();
+    ast_nodes.insert(111, node1);
+
+    let ans1 = vec![
+        ":112 = ap ap ap ap c ap eq 0 1 0 ap ap ap b ap mul 2 ap ap b :111 ap add -1 0",
+        ":112 = ap ap ap ap eq 0 0 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 0",
+        ":112 = ap ap t 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 0",
+    ];
+    let ans2 = vec![
+        ":112 = ap ap ap s ap ap c ap eq 0 1 ap ap b ap mul 2 ap ap b :111 ap add -1 1",
+        ":112 = ap ap ap ap c ap eq 0 1 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 1",
+        ":112 = ap ap ap ap eq 0 1 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 1",
+        ":112 = ap ap f 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 1",
+        ":112 = ap ap ap b ap mul 2 ap ap b :111 ap add -1 1",
+        ":112 = ap ap mul 2 ap ap ap b :111 ap add -1 1",
+        ":112 = ap ap mul 2 ap :111 ap ap add -1 1",
+        ":112 = ap ap mul 2 ap ap ap s ap ap c ap eq 0 1 ap ap b ap mul 2 ap ap b :111 ap add -1 ap ap add -1 1",
+        ":112 = ap ap mul 2 ap ap ap ap c ap eq 0 1 ap ap add -1 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 ap ap add -1 1",
+        ":112 = ap ap mul 2 ap ap ap ap eq 0 ap ap add -1 1 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 ap ap add -1 1",
+        ":112 = ap ap mul 2 ap ap ap ap eq 0 0 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 ap ap add -1 1",
+        ":112 = ap ap mul 2 ap ap t 1 ap ap ap b ap mul 2 ap ap b :111 ap add -1 ap ap add -1 1",
+        ":112 = ap ap mul 2 1",
+        ":112 = 2",
+    ];
+    let ans4 =
+        vec![":112 = ap ap ap s ap ap c ap eq 0 1 ap ap b ap mul 2 ap ap b :111 ap add -1 2"];
+    for &s in ans1.iter() {
+        let node = AstNode::parse_str(s);
+        let node = evaluate(node, &ast_nodes, 0);
+        // println!("{:#?}", node);
+        assert!(node.value == Function::Number(1));
+    }
+    for &s in ans2.iter() {
+        let node = AstNode::parse_str(s);
+        let node = evaluate(node, &ast_nodes, 0);
+        // println!("{:#?}", node);
+        assert!(node.value == Function::Number(2));
+    }
+    for &s in ans4.iter() {
+        let node = AstNode::parse_str(s);
+        let node = evaluate(node, &ast_nodes, 0);
+        // println!("{:#?}", node);
+        assert!(node.value == Function::Number(4));
+    }
+}
