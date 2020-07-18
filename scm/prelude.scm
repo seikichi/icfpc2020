@@ -89,3 +89,14 @@
 (assert "AP (2)" (_ap (_ap _add 1) 1) 2)
 
 (assert "Lazy Eval Test" (force (_ap _car (_ap (_ap _cons 1) _bottom))) 1)
+
+;; Utilities
+(define (_cadr x) (_ap _car (_ap _cdr x)))
+(define (_caddr x) (_ap _car (_ap _cdr (_ap _cdr x))))
+(define (_usual x)
+  (cond ((promise? x) (_usual (force x)))
+        ((number? x) x)
+        ((eq? x _t) #t)
+        ((eq? x _f) #f)
+        ((eq? (_isnil x) _t) '())
+        (else (cons (_usual (_car x)) (_usual (_cdr x))))))
