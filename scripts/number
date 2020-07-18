@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+
+import sys
+
+def decode_at(s, x0, y0):
+    if x0+1 >= len(s[y0]):
+        return None
+    if not (s[y0][x0] == ' ' and s[y0][x0+1] == '#'):
+        return None
+
+    w = 0
+    for i in range(1, 10000000):
+        if x0+i >= len(s[y0]) or s[y0][x0+i] == ' ':
+            w = i-1
+            break
+    h = 0
+    for i in range(1, 1000000):
+        if y0+i >= len(s) or s[y0+i][x0] == ' ':
+            h = i-1
+            break
+
+    #print("w = {}, h = {}".format(w, h))
+
+    sum = 0
+    d = 1
+    for y in range(1, h+1):
+        #print("x0 = {}, y = {}".format(x0, y))
+        if s[y0+y][x0] != '#':
+            raise RuntimeError("行が # で始まっていません")
+        for x in range(1, w+1):
+            if s[y0+y][x0+x] == '#':
+                sum += d
+            d *= 2
+    if w != h:
+        sum = -sum
+    return sum
+
+def main():
+    s = sys.stdin.readlines()
+    for i in range(len(s)):
+        line = s[i]
+        if line[len(line)-1] == '\n':
+            line = line[:len(line)-1]
+        s[i] = line
+
+    for x in range(len(s[0])):
+        d = decode_at(s, x, 0)
+        if d is not None:
+            print(d)
+
+main()

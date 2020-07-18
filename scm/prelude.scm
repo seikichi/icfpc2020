@@ -137,10 +137,13 @@
 (define (_multipledraw points-list)
   (for-each
     (lambda (points)
-      (_draw points)
-      (print "---------"))
+      (if (null? points)
+        #t
+        (begin
+          (_draw points)
+          (print "---------"))))
     points-list))
 
-;(define points1 '( (1 . 1) (2 . 1) (3 . 1) (-1 . -1) ))
-;(define points2 '( (0 . 0) (0 . 1) (1 . 1) ))
-;(_multipledraw (list points1 points2))
+(define points1 '( (1 . 1) (2 . 1) (3 . 1) (-1 . -1) ))
+(define points2 '( (0 . 0) (0 . 1) (1 . 1) ))
+(_multipledraw (list points1 points2 '()))
