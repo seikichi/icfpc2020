@@ -688,3 +688,11 @@ fn test_multi_function() {
     assert!(node.value == Function::Number(2));
     return;
 }
+
+#[test]
+fn test_cons_add() {
+    let node = AstNode::parse_str(":113 = ap ap ap cons 1 1 add");
+    let node = evaluate(node, &mut HashMap::new(), &mut HashMap::new(), 0);
+    // println!("{:#?}", node);
+    assert!(node.value == Function::Number(2));
+}
