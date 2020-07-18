@@ -717,3 +717,15 @@ fn test_cons_add() {
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(2));
 }
+
+#[test]
+fn test_nil_bottom() {
+    let mut ast_nodes = HashMap::new();
+    let node = AstNode::parse_str(":111 = :111");
+    ast_nodes.insert(111, node);
+
+    let node = AstNode::parse_str(":113 = ap ap ap nil :111 42 :111");
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    println!("{:#?}", node);
+    assert!(node.value == Function::Number(42));
+}
