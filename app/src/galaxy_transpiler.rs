@@ -1,5 +1,6 @@
 mod galaxy_interpreter;
 
+use std::thread;
 use galaxy_interpreter::{load, Function, Statement};
 
 fn parse_cells(cells: &[Function]) -> (String, &[Function]) {
@@ -43,11 +44,15 @@ fn transpile_statement(s: &Statement) -> String {
 }
 
 fn main() {
-    let statements = load();
-    for (id, statement) in statements {
-        println!("statement length = {}", statement.cells.len());
-        println!("(define z{} {})", id, transpile_statement(&statement));
-    }
+    let stack_size = 1024 * 1024 * 1024;
+    let handler = thread::Builder::new().name("transpiler".to_owned()).stack_size(stack_size).spawn(move || {
+        let statements = load();
+        for (id, statement) in statements {
+            println!("statement length = {}", statement.cells.len());
+            println!("(define z{} {})", id, transpile_statement(&statement));
+        }
+    }).unwrap();
+    handler.join().unwrap();
 }
 
 #[test]

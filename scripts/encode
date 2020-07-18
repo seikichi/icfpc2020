@@ -101,16 +101,33 @@ def parse(source):
         raise RuntimeError("Invalid syntax around here: " + source)
 
 
-def main():
-    source = sys.stdin.read()
-    encoded, rest = parse(source)
+def parse_all(source):
+    """
+    Parse source and returns encoded string.
 
-    print(encoded)
+    >>> parse_all("0")
+    '010'
+    >>> parse_all("1")
+    '01100001'
+    >>> parse_all("-1")
+    '10100001'
+    """
+
+    encoded, rest = parse(source)
 
     rest = rest.lstrip()
     if len(rest) != 0:
-        raise RuntimeError("Rest is not empty: [{}]".format(rest))
+        raise RuntimeError("Rest is not empty: '{}'\nNote: encoded='{}'".format(rest, encoded))
+
+    return encoded
+
+
+def main():
+    source = sys.stdin.read()
+    print(parse_all(source))
 
 
 if __name__ == '__main__':
-    main()
+    #main()
+    import doctest
+    doctest.testmod()
