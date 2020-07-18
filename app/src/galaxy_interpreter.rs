@@ -151,6 +151,7 @@ fn need_children(function: Function) -> Vec<usize> {
         Function::Cons => vec![],
         Function::Car => vec![0],
         Function::Cdr => vec![0],
+        Function::Isnil => vec![0],
         Function::True => vec![0],
         Function::False => vec![1],
         _ => unimplemented!(),
@@ -249,6 +250,14 @@ fn resolve_ast_node(
             let cons_cell = evaluated_children[0].clone();
             return evaluate(cons_cell.children[1].clone(), ast_nodes, depth);
         }
+        Function::Isnil => {
+            let ret = if evaluated_children[0].value == Function::Nil {
+                Function::True
+            } else {
+                Function::False
+            };
+            return AstNode::make_leaf(ret);
+        }
         _ => unimplemented!(),
     }
     panic!("invalid status");
@@ -269,7 +278,7 @@ fn evaluate(node: Rc<AstNode>, ast_nodes: &HashMap<i64, Rc<AstNode>>, depth: usi
                 children: children,
             });
             match lhs.value {
-                Function::Neg | Function::Car | Function::Cdr => {
+                Function::Neg | Function::Car | Function::Cdr | Function::Isnil => {
                     if ret.children.len() == 1 {
                         ret = resolve_ast_node(ret, ast_nodes, depth);
                     }
@@ -418,4 +427,15 @@ fn test_cmp() {
     let node = evaluate(node, &ast_nodes, 0);
     // println!("{:#?}", node);
     assert!(node.value == Function::False);
+}
+
+#[test]
+fn test_isnil() {
+    let node = AstNode::parse_str(":112 = ap isnil nil");
+    let node = evaluate(node, &HashMap::new(), 0);
+    assert!(node.value == Function::True);
+    let node = AstNode::parse_str(":112 = ap isnil ap ap cons 1 nil");
+    let node = evaluate(node, &HashMap::new(), 0);
+    assert!(node.value == Function::False);
+    return;
 }
