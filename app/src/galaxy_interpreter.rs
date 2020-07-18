@@ -151,20 +151,39 @@ impl fmt::Display for EvaluateError {
     }
 }
 
+fn need_children(function: Function) -> Vec<usize> {
+    match function {
+        Function::Neg => vec![0],
+        Function::Add | Function::Mul | Function::Div => vec![0, 1],
+        Function::Cons => vec![],
+        Function::Car => vec![0],
+        Function::Cdr => vec![1],
+        _ => unimplemented!(),
+    }
+}
+
 fn resolve_ast_node(
     node: Rc<AstNode>,
     ast_nodes: &HashMap<i64, Rc<AstNode>>,
     depth: usize,
 ) -> Result<Rc<AstNode>> {
+    let wants = need_children(node.value);
     let evaluated_children: Vec<Rc<AstNode>> = node
         .children
         .iter()
-        .map(|c| match c.value {
-            Function::Ap => evaluate(c, ast_nodes, depth).expect("can't evaluate"),
-            Function::Variable(id) => {
-                evaluate(&ast_nodes[&id], ast_nodes, depth).expect("can't evaluate")
+        .enumerate()
+        .map(|(i, c)| {
+            if !wants.contains(&i) {
+                c.clone()
+            } else {
+                match c.value {
+                    Function::Ap => evaluate(c, ast_nodes, depth).expect("can't evaluate"),
+                    Function::Variable(id) => {
+                        evaluate(&ast_nodes[&id], ast_nodes, depth).expect("can't evaluate")
+                    }
+                    _ => c.clone(),
+                }
             }
-            _ => c.clone(),
         })
         .collect();
     match node.value {
@@ -199,6 +218,12 @@ fn resolve_ast_node(
                 children: evaluated_children,
             }));
         }
+        Function::Car => {
+            return Ok(evaluated_children[0].clone());
+        }
+        Function::Cdr => {
+            return Ok(evaluated_children[1].clone());
+        }
         _ => unimplemented!(),
     }
     panic!("invalid status");
@@ -223,7 +248,7 @@ fn evaluate(
                 children: children,
             });
             match lhs.value {
-                Function::Neg => {
+                Function::Neg | Function::Car | Function::Cdr => {
                     if ret.children.len() == 1 {
                         ret = resolve_ast_node(ret, ast_nodes, depth).expect("can't resolve");
                     }
@@ -294,6 +319,16 @@ fn test_lazy_evaluation() {
     let node = evaluate(&node, &HashMap::new(), 0).expect("hoge");
     assert!(node.value == Function::Number(6));
     assert!(node.children.len() == 0);
+}
+
+#[test]
+fn test_lasy_evaluation_cons() {
+    let node = AstNode::parse_str(":111 = ap ap cons ap neg 1 nil");
+    let node = evaluate(&node, &HashMap::new(), 0).expect("hoge");
+    // println!("{:#?}", node);
+    assert!(node.value == Function::Cons);
+    assert!(node.children[0].value == Function::Ap);
+    assert!(node.children[0].children.len() == 2);
 }
 
 #[test]
