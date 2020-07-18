@@ -158,6 +158,7 @@ fn need_children(function: Function) -> Vec<usize> {
         Function::Icombinator => vec![0],
         Function::Bcombinator => vec![],
         Function::Ccombinator => vec![],
+        Function::Scombinator => vec![],
         _ => unimplemented!(),
     }
 }
@@ -287,6 +288,21 @@ fn resolve_ast_node(
             });
             return evaluate(parent, ast_nodes, depth);
         }
+        Function::Scombinator => {
+            let left = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![node.children[0].clone(), node.children[2].clone()],
+            });
+            let right = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![node.children[1].clone(), node.children[2].clone()],
+            });
+            let parent = Rc::new(AstNode {
+                value: Function::Ap,
+                children: vec![left, right],
+            });
+            return evaluate(parent, ast_nodes, depth);
+        }
         _ => unimplemented!(),
     }
     panic!("invalid status");
@@ -330,7 +346,7 @@ fn evaluate(node: Rc<AstNode>, ast_nodes: &HashMap<i64, Rc<AstNode>>, depth: usi
                     }
                     ret
                 }
-                Function::Ccombinator | Function::Bcombinator => {
+                Function::Ccombinator | Function::Bcombinator | Function::Scombinator => {
                     if ret.children.len() == 3 {
                         ret = resolve_ast_node(ret, ast_nodes, depth);
                     }
@@ -511,4 +527,11 @@ fn test_bcombinator() {
     // println!("{:#?}", node);
     assert!(node.value == Function::Number(1));
     return;
+}
+
+#[test]
+fn test_scombinator() {
+    let node = AstNode::parse_str(":111 = ap ap ap s mul ap add 1 6");
+    let node = evaluate(node, &HashMap::new(), 0);
+    assert!(node.value == Function::Number(42));
 }
