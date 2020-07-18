@@ -776,7 +776,7 @@ fn test_nil_bottom() {
     ast_nodes.insert(111, node);
 
     let node = AstNode::parse_str(":113 = ap ap ap nil :111 42 :111");
-    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0);
+    let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     println!("{:#?}", node);
     assert!(node.value == Function::Number(42));
 }
