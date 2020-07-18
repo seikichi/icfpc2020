@@ -1,3 +1,9 @@
+(define-syntax _ap
+  (syntax-rules ()
+    ((_ fun arg) ((force fun) (lazy arg)))))
+
+(define _bottom (lazy _bottom))
+
 (define (_inc x) (+ (force x) 1))
 (define (_dec x) (- (force x) 1))
 (define _add (lambda (x0) (lambda (x1) (+ (force x0) (force x1)))))
@@ -78,3 +84,8 @@
 (assert "Power of Two (2)" (force ((force _pwr2) 2)) 4)
 (assert "Power of Two (3)" (force ((force _pwr2) 3)) 8)
 (assert "Power of Two (8)" (force ((force _pwr2) 8)) 256)
+
+(assert "AP (1)" (_ap _inc 0) 1)
+(assert "AP (2)" (_ap (_ap _add 1) 1) 2)
+
+(assert "Lazy Eval Test" (force (_ap _car (_ap (_ap _cons 1) _bottom))) 1)
