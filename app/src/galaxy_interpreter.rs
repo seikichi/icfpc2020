@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::convert::From;
 use std::fs;
+use std::rc::Rc;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Function {
     Ap,
     Cons,
@@ -96,6 +97,43 @@ pub fn load() -> HashMap<i64, Statement> {
         .collect()
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+struct AstNode {
+    value: Function,
+    left: Option<Rc<AstNode>>,
+    right: Option<Rc<AstNode>>,
+}
+
+impl AstNode {
+    fn parse_cells(cells: &Vec<Function>, cell_index: usize) -> (Rc<Self>, usize) {
+        let value = cells[cell_index];
+        match value {
+            Function::Ap => {
+                let (left, cell_index) = AstNode::parse_cells(cells, cell_index + 1);
+                let (right, cell_index) = AstNode::parse_cells(cells, cell_index + 1);
+                let ret = AstNode {
+                    value,
+                    left: Some(left),
+                    right: Some(right),
+                };
+                (Rc::new(ret), cell_index)
+            }
+            _ => {
+                let ret = AstNode {
+                    value,
+                    left: None,
+                    right: None,
+                };
+                (Rc::new(ret), cell_index)
+            }
+        }
+    }
+}
+
 fn main() {
     let statements = load();
+    let (node, index) = AstNode::parse_cells(&statements[&1029].cells, 0);
+    println!("{:?}", statements[&1029]);
+    println!("{:?} {}", node, index);
+    // for &statement in statements.iter() {}
 }
