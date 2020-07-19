@@ -22,6 +22,8 @@ impl ProxyClient {
     fn send(self, encoded_args: &str) -> Result<String, Error> {
         let url = self.server_url + "/alians/send";
 
+        println!("Request: url={}, body={}", url, encoded_args);
+
         let client = reqwest::blocking::Client::new();
         let resp = client.post(&url).body(encoded_args.to_owned()).send()?;
 
