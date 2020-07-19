@@ -158,19 +158,42 @@ fn sgn(x: i64) -> i64 {
     }
 }
 
+fn simulate_next(mut pos: Vector, mut vel: Vector) -> (Vector, Vector) {
+    if pos.x.abs() > pos.y.abs() {
+        vel.x += -sgn(pos.x);
+    } else {
+        vel.y += -sgn(pos.y);
+    }
+    pos += vel;
+    (pos, vel)
+}
+
 // 星にぶつかるまでの時間をかえす
-fn simulate_orbit(mut pos: Vector, mut vel: Vector, n: isize, planet_radius: i64) -> isize {
+fn simulate_orbit_to_planet(mut pos: Vector, mut vel: Vector, n: isize, planet_radius: i64) -> isize {
     if pos.x.abs() <= planet_radius && pos.y.abs() <= planet_radius {
         return 0;
     }
     for i in 0..n {
-        if pos.x.abs() > pos.y.abs() {
-            vel.x += -sgn(pos.x);
-        } else {
-            vel.y += -sgn(pos.y);
-        }
-        pos += vel;
+        let (next_pos, next_vel) = simulate_next(pos, vel);
+        pos = next_pos;
+        vel = next_vel;
         if pos.x.abs() <= planet_radius && pos.y.abs() <= planet_radius {
+            return i+1;
+        }
+    }
+    return n+1;
+}
+
+// 安全なエリアから出るまでの時間をかえす
+fn simulate_orbit_out_of_safe_area(mut pos: Vector, mut vel: Vector, n: isize, safe_radius: i64) -> isize {
+    if pos.x.abs() > safe_radius && pos.y.abs() > safe_radius {
+        return 0;
+    }
+    for i in 0..n {
+        let (next_pos, next_vel) = simulate_next(pos, vel);
+        pos = next_pos;
+        vel = next_vel;
+        if pos.x.abs() > safe_radius && pos.y.abs() > safe_radius {
             return i+1;
         }
     }
@@ -199,11 +222,20 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
     loop {
-        let collide_steps = simulate_orbit(prev_pos, prev_vel, 5, 16);
+        let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, 16);
+        let out_of_bound_steps = simulate_orbit_out_of_safe_area(prev_pos, prev_vel, 5, 128);
 
-        let commands = if collide_steps <= 5 {
+        let commands = if collide_steps <= 8 {
             let v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
-            info!("@@@@ [{:?}] v={}", role, v);
+            info!("@@@@ [{:?}] v={}, planet_collide", role, v);
+            let acc = Command::Accelerate{
+                ship_id: ship_id,
+                vector: v
+            };
+            vec![acc]
+        } else if out_of_bound_steps <= 5 {
+            let v = normalize_dir(Vector::new(prev_vel.x, prev_vel.y));
+            info!("@@@@ [{:?}] v={}, out_of_bound", role, v);
             let acc = Command::Accelerate{
                 ship_id: ship_id,
                 vector: v
