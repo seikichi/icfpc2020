@@ -15,10 +15,8 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 extern "C" {}
 
 #[wasm_bindgen]
-pub fn evaluate_galaxy() -> String {
-    let mut evaluator = GalaxyEvaluator::new();
-    let node = evaluator.evaluate(AstNode::make_nil(), AstNode::make_vector(0, 0));
-    format!("{:#?}", node)
+pub fn format_modulated_string(s: String) -> String {
+    format!("{}", demodulate(&s))
 }
 
 #[wasm_bindgen]
@@ -26,6 +24,8 @@ pub struct GalaxyEvaluatorProxy {
     evaluator: GalaxyEvaluator,
     data: Rc<AstNode>,
     state: Rc<AstNode>,
+    previous_state: Rc<AstNode>,
+    previous_vector: Rc<AstNode>,
 
     cells: Vec<Vec<u32>>,
     flag: i64,
@@ -51,6 +51,8 @@ impl GalaxyEvaluatorProxy {
             evaluator,
             data: AstNode::make_nil(),
             state: AstNode::make_nil(),
+            previous_state: AstNode::make_nil(),
+            previous_vector: AstNode::make_nil(),
             cells: vec![vec![]],
             flag: 0,
             ymin: 0,
@@ -70,10 +72,39 @@ impl GalaxyEvaluatorProxy {
         modulate(self.data.clone())
     }
 
-    pub fn continue_interaction(&mut self, data: String) {
-        let node = self
-            .evaluator
-            .evaluate(self.state.clone(), demodulate(&data));
+    pub fn get_current_state_for_human(&self) -> String {
+        format!("{}", self.state)
+    }
+
+    pub fn get_previous_state(&self) -> String {
+        modulate(self.previous_state.clone())
+    }
+
+    pub fn get_previous_vector(&self) -> String {
+        modulate(self.previous_vector.clone())
+    }
+
+    pub fn get_previous_state_for_human(&self) -> String {
+        format!("{}", self.previous_state)
+    }
+
+    pub fn get_previous_vector_for_human(&self) -> String {
+        format!("{}", self.previous_vector)
+    }
+
+    pub fn restore(&mut self, state: String, vector: String) {
+        let state = demodulate(&state);
+        let vector = demodulate(&vector);
+
+        self.state = state;
+        self.interact(vector);
+    }
+
+    fn interact(&mut self, vector: Rc<AstNode>) {
+        self.previous_vector = vector.clone();
+        self.previous_state = self.state.clone();
+
+        let node = self.evaluator.evaluate(self.state.clone(), vector);
         self.flag = node.get_list_item(0).get_number();
         self.state = node.get_list_item(1);
         self.data = node.get_list_item(2);
@@ -83,22 +114,18 @@ impl GalaxyEvaluatorProxy {
         }
     }
 
-    pub fn interact(&mut self, y: u32, x: u32) {
+    pub fn continue_interaction(&mut self, data: String) {
+        self.interact(demodulate(&data))
+    }
+
+    pub fn start_interaction(&mut self, y: u32, x: u32) {
         let y = y as i64 + self.ymin;
         let x = x as i64 + self.xmin;
         self.y = y;
         self.x = x;
 
-        let node = self
-            .evaluator
-            .evaluate(self.state.clone(), AstNode::make_vector(x as i64, y as i64));
-        self.flag = node.get_list_item(0).get_number();
-        self.state = node.get_list_item(1);
-        self.data = node.get_list_item(2);
-
-        if self.flag == 0 {
-            self.update_cells(self.data.clone());
-        }
+        let vector = AstNode::make_vector(x as i64, y as i64);
+        self.interact(vector);
     }
 
     pub fn debug(&self) -> String {

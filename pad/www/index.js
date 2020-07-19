@@ -1,13 +1,41 @@
-import { GalaxyEvaluatorProxy } from "pad";
+import { GalaxyEvaluatorProxy, format_modulated_string } from "pad";
 
 const canvas = document.getElementById("galaxy-canvas");
+
+const status_elem = document.getElementById("status");
+const current_url_elem = document.getElementById("current-url");
+const current_state_elem = document.getElementById("current-state");
+const previous_state_elem = document.getElementById("previous-state");
+const previous_vector_elem = document.getElementById("previous-vector");
+const previous_modulated_state_elem = document.getElementById("previous-state-modulated");
+const previous_modulated_vector_elem = document.getElementById("previous-vector-modulated");
+
+const last_send_input_elem = document.getElementById("last-send-input");
+const last_send_output_elem = document.getElementById("last-send-output");
+const last_send_modulated_input_elem = document.getElementById("last-send-input-modulated");
+const last_send_modulated_output_elem = document.getElementById("last-send-input-modulated");
+
 const ctx = canvas.getContext('2d');
 let width = 0;
 let height = 0;
+let last_send_input = "";
+let last_send_output = "";
+let last_send_modulated_input = "";
+let last_send_modulated_output = "";
 
-const apiKey = (new URL(document.location)).searchParams.get('apiKey')
-console.log(apiKey);
-const CELL_SIZE = 20; // px
+const url = new URL(document.location);
+const searchParams = url.searchParams;
+const origin = url.origin;
+const apiKey = searchParams.get('apiKey');
+
+if (!apiKey) {
+    alert("INVALID URL: missing apiKey query parameter");
+}
+
+const initial_state = searchParams.get('state');
+const initial_vector = searchParams.get('vector');
+
+const CELL_SIZE = 5; // px
 const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
 const ALIVE_COLOR = "#000000";
@@ -26,14 +54,49 @@ const colors = [
 
 const proxy = GalaxyEvaluatorProxy.new()
 
+if (initial_state && initial_vector) {
+    proxy.restore(initial_state, initial_vector);
+}
+
+let processing = false;
+const disableCanvas = () => {
+    processing = true;
+    canvas.style = 'pointer-events: none;';
+    status_elem.textContent = "processing";
+}
+const enableCanvas = () => {
+    processing = false;
+    canvas.style = '';
+    status_elem.textContent = "done";
+};
+
+const updateInfo = () => {
+    current_url_elem.href = `${origin}?apiKey=${apiKey}&state=${proxy.get_previous_state()}&vector=${proxy.get_previous_vector()}`;
+    current_state_elem.textContent = proxy.get_current_state_for_human();
+    previous_state_elem.textContent = proxy.get_previous_state_for_human();
+    previous_vector_elem.textContent = proxy.get_previous_vector_for_human();
+    previous_modulated_state_elem.textContent = proxy.get_previous_state();
+    previous_modulated_vector_elem.textContent = proxy.get_previous_vector();
+
+    last_send_input_elem.textContent = last_send_input;
+    last_send_output_elem.textContent = last_send_output;
+    last_send_modulated_input.textContent = last_send_input;
+    last_send_modulated_output_elem.textContent = last_send_output;
+};
+
 const interact = async (rows, cols) => {
-    proxy.interact(rows, cols);
+    proxy.start_interaction(rows, cols);
 
     while (proxy.needs_send()) {
         const body = proxy.get_send_body();
+        last_send_modulated_input = body;
+        last_send_input = format_modulated_string(body);
         const url = `/api/aliens/send?apiKey=${apiKey}`;
         const response = await fetch(url, { method: 'POST', body: body });
         const text = await response.text();
+        last_send_modulated_output = text;
+        last_send_output = format_modulated_string(text);
+
         proxy.continue_interaction(text);
     }
 };
@@ -106,6 +169,10 @@ const drawCells = () => {
 };
 
 canvas.addEventListener("click", async event => {
+    if (processing) {
+        return;
+    }
+
     const boundingRect = canvas.getBoundingClientRect();
 
     const scaleX = canvas.width / boundingRect.width;
@@ -117,14 +184,19 @@ canvas.addEventListener("click", async event => {
     const row = Math.min(Math.floor(canvasTop / (CELL_SIZE + 1)), height - 1);
     const col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1)), width - 1);
 
-    console.log(row, col);
+    disableCanvas();
     await update(row, col);
     drawGrid();
     drawCells();
+    enableCanvas();
+    updateInfo();
 });
 
 (async () => {
+    disableCanvas();
     await update(0, 0);
     drawGrid();
     drawCells();
+    enableCanvas();
+    updateInfo();
 })();

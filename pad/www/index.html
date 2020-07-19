@@ -6,23 +6,24 @@
   <title>ハイライト 百万遍店</title>
 
   <style>
-    body {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
   </style>
 </head>
 
 <body>
-  <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
   <canvas id="galaxy-canvas"></canvas>
+  <ul>
+    <li>status: <span id="status"></span></li>
+    <li><a id="current-url" href="">current URL</a></li>
+    <li>current state: <span id="current-state"></span></li>
+    <li>previous state: <span id="previous-state"></span></li>
+    <li>previous vector: <span id="previous-vector"></span></li>
+    <li>previous state (modulated): <span id="previous-state-modulated"></span></li>
+    <li>previous vector (modulated): <span id="previous-vector-modulated"></span></li>
+    <li>last send input: <span id="last-send-input"></span></li>
+    <li>last send output: <span id="last-send-output"></span></li>
+    <li>last send input (modulated): <span id="last-send-input-modulated"></span></li>
+    <li>last send output (modulated): <span id="last-send-output-modulated"></span></li>
+  </ul>
   <script src="./bootstrap.js"></script>
 </body>
 
