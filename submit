@@ -18,5 +18,6 @@ BRANCH_NAME="submissions/$(date +%Y%m%d%H%M%S)"
 git checkout -b "$BRANCH_NAME"
 git push origin HEAD
 git checkout master
+git branch -D "$BRANCH_NAME"
 
 echo "Submission succeeded"
