@@ -148,6 +148,35 @@ fn normalize_dir(v: Vector) -> Vector {
     best
 }
 
+fn sgn(x: i64) -> i64 {
+    if x > 0 {
+        1
+    } else if x < 0 {
+        -1
+    } else {
+        0
+    }
+}
+
+// 星にぶつかるまでの時間をかえす
+fn simulate_orbit(mut pos: Vector, mut vel: Vector, n: isize, planet_radius: i64) -> isize {
+    if pos.x.abs() <= planet_radius && pos.y.abs() <= planet_radius {
+        return 0;
+    }
+    for i in 0..n {
+        if pos.x.abs() > pos.y.abs() {
+            vel.x += -sgn(pos.x);
+        } else {
+            vel.y += -sgn(pos.y);
+        }
+        pos += vel;
+        if pos.x.abs() <= planet_radius && pos.y.abs() <= planet_radius {
+            return i+1;
+        }
+    }
+    return n+1;
+}
+
 fn play(client: ProxyClient) -> Result<(), Error> {
     info!("Player: {}", client.player_key);
 
@@ -170,9 +199,9 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
     loop {
-        let dist_to_planet = prev_pos.abs();
+        let collide_steps = simulate_orbit(prev_pos, prev_vel, 5, 16);
 
-        let commands = if dist_to_planet < 50.0 || prev_vel.abs() < 5.0 {
+        let commands = if collide_steps <= 5 {
             let v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
             info!("@@@@ [{:?}] v={}", role, v);
             let acc = Command::Accelerate{
