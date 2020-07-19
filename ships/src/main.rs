@@ -65,10 +65,10 @@ impl ProxyClient {
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
             AstNode::make_list(&vec![
-                AstNode::make_number(0),
-                AstNode::make_number(0),
-                AstNode::make_number(0),
-                AstNode::make_number(0),
+                AstNode::make_number(1),
+                AstNode::make_number(1),
+                AstNode::make_number(1),
+                AstNode::make_number(1),
             ]),
         ]);
         let resp = self.send(args, "START")?;
