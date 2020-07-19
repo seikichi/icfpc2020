@@ -1,6 +1,6 @@
-use core::{AstNode, GalaxyEvaluator, demodulate};
-use std::thread;
+use core::{demodulate, AstNode, GalaxyEvaluator};
 use std::env;
+use std::thread;
 
 #[allow(dead_code)]
 fn main() {

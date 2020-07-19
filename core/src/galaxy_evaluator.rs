@@ -25,16 +25,16 @@ impl GalaxyEvaluator {
     pub fn evaluate(&mut self, state: Rc<AstNode>, vect: Rc<AstNode>) -> Rc<AstNode> {
         assert!(vect.value == Function::Cons);
         assert!(vect.children.len() == 2);
-        let node = Rc::new(AstNode {
-            value: Function::Ap,
-            children: vec![
-                Rc::new(AstNode {
-                    value: Function::Ap,
-                    children: vec![AstNode::make_leaf(Function::Variable(0)), state.clone()],
-                }),
+        let node = Rc::new(AstNode::new(
+            Function::Ap,
+            vec![
+                Rc::new(AstNode::new(
+                    Function::Ap,
+                    vec![AstNode::make_leaf(Function::Variable(0)), state.clone()],
+                )),
                 vect.clone(),
             ],
-        });
+        ));
         let node = evaluate(node, &mut self.ast_nodes, &mut self.memo, 0, true);
         let node = usual(node.clone(), &mut self.ast_nodes, &mut self.memo, 0);
         return node;

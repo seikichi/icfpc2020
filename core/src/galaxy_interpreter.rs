@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::convert::From;
 use std::fmt;
@@ -102,7 +103,8 @@ pub fn load() -> HashMap<i64, Statement> {
         .collect()
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+static mut AST_NODE_NUM: usize = 0;
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct AstNode {
     pub value: Function,
     pub children: Vec<Rc<AstNode>>,
@@ -143,26 +145,25 @@ impl AstNode {
             Function::Ap => {
                 let (left, cell_index) = AstNode::parse_cells(cells, cell_index + 1);
                 let (right, cell_index) = AstNode::parse_cells(cells, cell_index + 1);
-                let ret = AstNode {
-                    value,
-                    children: vec![left, right],
-                };
+                let ret = AstNode::new(value, vec![left, right]);
                 (Rc::new(ret), cell_index)
             }
             _ => {
-                let ret = AstNode {
-                    value,
-                    children: vec![],
-                };
+                let ret = AstNode::new(value, vec![]);
                 (Rc::new(ret), cell_index)
             }
         }
     }
+    pub fn new(value: Function, children: Vec<Rc<AstNode>>) -> Self {
+        // let id;
+        // unsafe {
+        //     id = AST_NODE_NUM;
+        //     AST_NODE_NUM += 1;
+        // }
+        AstNode { value, children }
+    }
     pub fn make_leaf(function: Function) -> Rc<Self> {
-        Rc::new(AstNode {
-            value: function,
-            children: vec![],
-        })
+        Rc::new(AstNode::new(function, vec![]))
     }
     #[allow(dead_code)]
     pub fn make_nil() -> Rc<Self> {
@@ -174,20 +175,17 @@ impl AstNode {
     }
     #[allow(dead_code)]
     pub fn make_vector(x: i64, y: i64) -> Rc<Self> {
-        Rc::new(AstNode {
-            value: Function::Cons,
-            children: vec![
+        Rc::new(AstNode::new(
+            Function::Cons,
+            vec![
                 Self::make_leaf(Function::Number(x)),
                 Self::make_leaf(Function::Number(y)),
             ],
-        })
+        ))
     }
     #[allow(dead_code)]
     pub fn make_cons(l: Rc<AstNode>, r: Rc<AstNode>) -> Rc<Self> {
-        Rc::new(AstNode {
-            value: Function::Cons,
-            children: vec![l.clone(), r.clone()],
-        })
+        Rc::new(AstNode::new(Function::Cons, vec![l.clone(), r.clone()]))
     }
     #[allow(dead_code)]
     pub fn make_list(elements: &[Rc<AstNode>]) -> Rc<AstNode> {
@@ -356,12 +354,16 @@ fn resolve_ast_node_with_memo(
     depth: usize,
     use_memo: bool,
 ) -> Rc<AstNode> {
-    if use_memo && memo.contains_key(&node) {
-        return memo[&node].clone();
+    {
+        let entry = memo.entry(node.clone());
+        if let Entry::Occupied(ret) = entry {
+            return ret.get().clone();
+        }
     }
     let ret = resolve_ast_node(node.clone(), ast_nodes, memo, depth, use_memo);
     if use_memo {
-        memo.insert(node, ret.clone());
+        // println!("memo: {}, node: {:#?}, ret: {:#?}", node, node, ret);
+        memo.insert(node.clone(), ret.clone());
     }
     return ret;
 }
@@ -439,14 +441,14 @@ fn resolve_ast_node(
             return AstNode::make_leaf(ret);
         }
         Function::Cons => {
-            let leaf = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![node.children[2].clone(), node.children[0].clone()],
-            });
-            let parent = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![leaf, node.children[1].clone()],
-            });
+            let leaf = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![node.children[2].clone(), node.children[0].clone()],
+            ));
+            let parent = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![leaf, node.children[1].clone()],
+            ));
             return evaluate(parent, ast_nodes, memo, depth, use_memo);
         }
         Function::True => {
@@ -456,20 +458,20 @@ fn resolve_ast_node(
             return evaluated_children[1].clone();
         }
         Function::Car => {
-            let leaf = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![node.children[0].clone(), AstNode::make_leaf(Function::True)],
-            });
+            let leaf = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![node.children[0].clone(), AstNode::make_leaf(Function::True)],
+            ));
             return evaluate(leaf, ast_nodes, memo, depth, use_memo);
         }
         Function::Cdr => {
-            let leaf = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![
+            let leaf = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![
                     node.children[0].clone(),
                     AstNode::make_leaf(Function::False),
                 ],
-            });
+            ));
             return evaluate(leaf, ast_nodes, memo, depth, use_memo);
         }
         Function::Nil => {
@@ -487,40 +489,37 @@ fn resolve_ast_node(
             return evaluated_children[0].clone();
         }
         Function::Ccombinator => {
-            let leaf = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![node.children[0].clone(), node.children[2].clone()],
-            });
-            let parent = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![leaf, node.children[1].clone()],
-            });
+            let leaf = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![node.children[0].clone(), node.children[2].clone()],
+            ));
+            let parent = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![leaf, node.children[1].clone()],
+            ));
             return evaluate(parent, ast_nodes, memo, depth, use_memo);
         }
         Function::Bcombinator => {
-            let leaf = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![node.children[1].clone(), node.children[2].clone()],
-            });
-            let parent = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![node.children[0].clone(), leaf],
-            });
+            let leaf = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![node.children[1].clone(), node.children[2].clone()],
+            ));
+            let parent = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![node.children[0].clone(), leaf],
+            ));
             return evaluate(parent, ast_nodes, memo, depth, use_memo);
         }
         Function::Scombinator => {
-            let left = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![node.children[0].clone(), node.children[2].clone()],
-            });
-            let right = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![node.children[1].clone(), node.children[2].clone()],
-            });
-            let parent = Rc::new(AstNode {
-                value: Function::Ap,
-                children: vec![left, right],
-            });
+            let left = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![node.children[0].clone(), node.children[2].clone()],
+            ));
+            let right = Rc::new(AstNode::new(
+                Function::Ap,
+                vec![node.children[1].clone(), node.children[2].clone()],
+            ));
+            let parent = Rc::new(AstNode::new(Function::Ap, vec![left, right]));
             return evaluate(parent, ast_nodes, memo, depth, use_memo);
         }
         _ => unimplemented!(),
@@ -548,10 +547,7 @@ pub fn evaluate(
             let rhs = &node.children[1];
             let mut children = lhs.children.clone();
             children.push(rhs.clone());
-            let mut ret = Rc::new(AstNode {
-                value: lhs.value,
-                children: children,
-            });
+            let mut ret = Rc::new(AstNode::new(lhs.value, children));
             match lhs.value {
                 Function::Neg
                 | Function::Car
@@ -619,22 +615,13 @@ pub fn usual(
             let left = usual(evaluated_children[0].clone(), ast_nodes, memo, depth + 1);
             let right = usual(evaluated_children[1].clone(), ast_nodes, memo, depth + 1);
             if USE_LIST && right.value == Function::Nil {
-                return Rc::new(AstNode {
-                    value: Function::List,
-                    children: vec![left],
-                });
+                return Rc::new(AstNode::new(Function::List, vec![left]));
             } else if right.value == Function::List {
                 let mut children = vec![left];
                 children.append(&mut right.children.clone());
-                return Rc::new(AstNode {
-                    value: Function::List,
-                    children: children,
-                });
+                return Rc::new(AstNode::new(Function::List, children));
             } else {
-                return Rc::new(AstNode {
-                    value: Function::Cons,
-                    children: vec![left, right],
-                });
+                return Rc::new(AstNode::new(Function::Cons, vec![left, right]));
             }
         }
         Function::Car => {
