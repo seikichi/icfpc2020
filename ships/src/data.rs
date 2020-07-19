@@ -152,6 +152,12 @@ impl Vector {
         ret += self.y * rhs.y;
         return ret;
     }
+    pub fn norm(&self) -> Weight {
+        self.dot(self)
+    }
+    pub fn abs(&self) -> f64 {
+        (self.norm() as f64).sqrt()
+    }
 }
 
 impl fmt::Display for Vector {
