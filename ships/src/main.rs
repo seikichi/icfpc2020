@@ -62,7 +62,7 @@ fn send(
     let status = resp.status();
     if !status.is_success() {
         error!("RequestFailed({}): status={}, body={}", purpose, status, resp.text()?);
-        let e = RequestFailedError {}; // TODO: レスポンスの情報を埋める
+        let e = RequestFailedError {};
         return Err(From::from(e));
     }
 
@@ -71,7 +71,7 @@ fn send(
 
     if decoded_body.get_list_item(0).get_number() == 0 {
         error!("ErrorResponse({}): status={}, body={}", purpose, status, decoded_body);
-        let e = RequestFailedError {}; // TODO: レスポンスの情報を埋める
+        let e = RequestFailedError {};
         return Err(From::from(e));
     }
     info!("Response({}): status={}, body={}", purpose, status, decoded_body);
@@ -145,16 +145,13 @@ impl ProxyClient {
 #[fail(display = "Request failed")]
 pub struct RequestFailedError {}
 
-#[derive(Debug, Eq, PartialEq)]
-enum Mode {
-    Local,
-    Remote,
-}
-
 fn play(client: ProxyClient) -> Result<(), Error> {
     info!("Player: {}", client.player_key);
 
-    client.join()?;
+    let resp = client.join()?;
+    if resp.stage == GameStage::Finished {
+        return Ok(());
+    }
 
     let resp = client.start()?;
     if resp.stage == GameStage::Finished {
@@ -183,6 +180,12 @@ fn create_players(api_key: Option<String>, server_url: &str) -> Result<(i64, i64
     let defender_info = pair.get_list_item(1);
     let ids = (attacker_info.get_list_item(1).get_number(), defender_info.get_list_item(1).get_number());
     Ok(ids)
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum Mode {
+    Local,
+    Remote,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
