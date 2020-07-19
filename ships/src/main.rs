@@ -19,16 +19,20 @@ impl ProxyClient {
         }
     }
 
-    fn send(self, encoded_args: &str) -> Result<String, Error> {
+    fn send(self, encoded_args: &str, purpose: &str /* for logging */) -> Result<String, Error> {
         let url = self.server_url + "/alians/send";
+
+        println!("Request({}): url={}, body={}", purpose, url, encoded_args);
 
         let client = reqwest::blocking::Client::new();
         let resp = client.post(&url).body(encoded_args.to_owned()).send()?;
 
         if !resp.status().is_success() {
+            println!("RequestFailed: status={}, body={}", resp.status(), resp.text()?);
             let e = RequestFailedError {}; // TODO: レスポンスの情報を埋める
             return Err(From::from(e));
         }
+
         let body = resp.text()?;
         Ok(body)
     }
@@ -40,7 +44,7 @@ impl ProxyClient {
             AstNode::make_nil(),
         ]);
         let encoded_args = modulate(args);
-        let resp = self.send(&encoded_args)?;
+        let resp = self.send(&encoded_args, "JOIN")?;
         println!("JOIN: resp={}", resp);
         Ok(())
     }
