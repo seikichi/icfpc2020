@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::fmt;
 use core::AstNode;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -127,10 +128,20 @@ pub struct Vector {
 }
 
 impl Vector {
+    pub fn new(x: i64, y: i64) -> Self {
+        Self { x, y }
+    }
+
     pub fn from_ast(ast: Rc<AstNode>) -> Self {
         let x = ast.children[0].get_number();
         let y = ast.children[1].get_number();
         Self { x, y }
+    }
+}
+
+impl fmt::Display for Vector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
     }
 }
 

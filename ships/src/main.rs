@@ -1,4 +1,5 @@
 mod data;
+mod command;
 
 extern crate failure;
 extern crate reqwest;
@@ -15,6 +16,7 @@ use std::thread;
 
 use core::{demodulate, modulate, AstNode};
 use crate::data::*;
+use crate::command::*;
 
 fn send(
     api_key: Option<String>,
@@ -112,11 +114,14 @@ impl ProxyClient {
         Ok(GameResponse::from_ast(resp))
     }
 
-    pub fn commands(&self) -> Result<GameResponse, Error> {
+    pub fn commands(&self, commands: &[Command]) -> Result<GameResponse, Error> {
+        let command_asts: Vec<_> = commands.iter().map(|c| c.to_ast()).collect();
+        let commands_ast = AstNode::make_list(&command_asts);
+
         let args = AstNode::make_list(&vec![
             AstNode::make_number(4),
             AstNode::make_number(self.player_key),
-            AstNode::make_nil(),
+            commands_ast,
         ]);
         let resp = self.send(args, "COMMANDS")?;
         info!("COMMANDS: resp={}", resp);
@@ -144,8 +149,14 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     }
 
     loop {
-        let resp = client.commands()?;
+        let command1 = Command::Accelerate{
+            ship_id: 0,
+            vector: Vector::new(1, 0),
+        };
+        let resp = client.commands(&vec![command1])?;
         info!("GameResponse: {:?}", resp);
+        let ship = resp.game_state.unwrap().ships_and_commands[0].ship;
+        info!("pos={}, vel={}", ship.position, ship.velocity);
         if resp.stage == GameStage::Finished {
             return Ok(());
         }
