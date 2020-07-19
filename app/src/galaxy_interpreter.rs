@@ -102,9 +102,9 @@ pub fn load() -> HashMap<i64, Statement> {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
-struct AstNode {
-    value: Function,
-    children: Vec<Rc<AstNode>>,
+pub struct AstNode {
+    pub value: Function,
+    pub children: Vec<Rc<AstNode>>,
 }
 impl fmt::Display for AstNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -129,13 +129,13 @@ impl fmt::Display for AstNode {
 
 impl AstNode {
     #[allow(dead_code)]
-    fn parse_str(s: &str) -> Rc<Self> {
+    pub fn parse_str(s: &str) -> Rc<Self> {
         let statement = Statement::new(s);
         let (node, index) = AstNode::parse_cells(&statement.cells, 0);
         assert!(index == statement.cells.len() - 1);
         return node;
     }
-    fn parse_cells(cells: &Vec<Function>, cell_index: usize) -> (Rc<Self>, usize) {
+    pub fn parse_cells(cells: &Vec<Function>, cell_index: usize) -> (Rc<Self>, usize) {
         let value = cells[cell_index];
         match value {
             Function::Ap => {
@@ -156,10 +156,25 @@ impl AstNode {
             }
         }
     }
-    fn make_leaf(function: Function) -> Rc<Self> {
+    pub fn make_leaf(function: Function) -> Rc<Self> {
         Rc::new(AstNode {
             value: function,
             children: vec![],
+        })
+    }
+    pub fn make_nil() -> Rc<Self> {
+        Self::make_leaf(Function::Nil)
+    }
+    pub fn make_number(v: i64) -> Rc<Self> {
+        Self::make_leaf(Function::Number(v))
+    }
+    pub fn make_vector(x: i64, y: i64) -> Rc<Self> {
+        Rc::new(AstNode {
+            value: Function::Cons,
+            children: vec![
+                Self::make_leaf(Function::Number(x)),
+                Self::make_leaf(Function::Number(y)),
+            ],
         })
     }
 }
@@ -378,7 +393,7 @@ fn resolve_ast_node(
     panic!("invalid status");
 }
 
-fn evaluate(
+pub fn evaluate(
     node: Rc<AstNode>,
     ast_nodes: &mut HashMap<i64, Rc<AstNode>>,
     memo: &mut HashMap<Rc<AstNode>, Rc<AstNode>>,
@@ -445,7 +460,7 @@ fn evaluate(
     }
 }
 
-fn usual(
+pub fn usual(
     node: Rc<AstNode>,
     ast_nodes: &mut HashMap<i64, Rc<AstNode>>,
     memo: &mut HashMap<Rc<AstNode>, Rc<AstNode>>,
