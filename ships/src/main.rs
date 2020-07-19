@@ -19,10 +19,10 @@ impl ProxyClient {
         }
     }
 
-    fn send(self, encoded_args: &str) -> Result<String, Error> {
+    fn send(self, encoded_args: &str, purpose: &str /* for logging */) -> Result<String, Error> {
         let url = self.server_url + "/alians/send";
 
-        println!("Request: url={}, body={}", url, encoded_args);
+        println!("Request({}): url={}, body={}", purpose, url, encoded_args);
 
         let client = reqwest::blocking::Client::new();
         let resp = client.post(&url).body(encoded_args.to_owned()).send()?;
@@ -44,7 +44,7 @@ impl ProxyClient {
             AstNode::make_nil(),
         ]);
         let encoded_args = modulate(args);
-        let resp = self.send(&encoded_args)?;
+        let resp = self.send(&encoded_args, "JOIN")?;
         println!("JOIN: resp={}", resp);
         Ok(())
     }
