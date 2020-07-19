@@ -130,7 +130,7 @@ impl GalaxyEvaluatorProxy {
 
         for (i, points) in points_lists.iter().enumerate() {
             for &Point { x, y } in points {
-                self.cells[(y - ymin) as usize][(x - xmin) as usize] = (i + 1) as u32;
+                self.cells[(y - ymin) as usize][(x - xmin) as usize] |= 1 << i;
             }
         }
     }

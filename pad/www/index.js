@@ -37,24 +37,49 @@ const drawGrid = () => {
     ctx.stroke();
 };
 
+let colors = [
+    "rgba(128,   0, 0, 0.5)",
+    "rgba(  0, 128, 0, 0.5)",
+    "rgba(  0,   0, 128, 0.5)",
+    "rgba(255,   0, 0, 0.5)",
+    "rgba(  0, 255, 0, 0.5)",
+    "rgba(  0,   0, 255, 0.5)",
+    "rgba(128, 128, 0, 0.5)",
+    "rgba(  0, 128, 128, 0.5)",
+    "rgba(128,   0, 128, 0.5)",
+];
+
 const drawCells = () => {
+    ctx.globalAlpha = 0.5;
+    ctx.globalCompositeOperation = "lighter";
+
     ctx.beginPath();
 
     for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
             const idx = proxy.color(row, col);
 
-
-            ctx.fillStyle = idx === 0
-                ? DEAD_COLOR
-                : ALIVE_COLOR;
-
+            ctx.fillStyle = DEAD_COLOR;
             ctx.fillRect(
                 col * (CELL_SIZE + 1) + 1,
                 row * (CELL_SIZE + 1) + 1,
                 CELL_SIZE,
                 CELL_SIZE
             );
+
+            for (let i = 0; i < 32; i++) {
+                let b = idx & (1 << i)
+                if (b === 0) { continue; }
+
+                ctx.fillStyle = colors[i];
+
+                ctx.fillRect(
+                    col * (CELL_SIZE + 1) + 1,
+                    row * (CELL_SIZE + 1) + 1,
+                    CELL_SIZE,
+                    CELL_SIZE
+                );
+            }
         }
     }
 
