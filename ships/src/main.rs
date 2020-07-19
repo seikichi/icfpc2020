@@ -3,8 +3,9 @@ extern crate reqwest;
 
 use failure::Error;
 use failure::Fail;
+use std::rc::Rc;
 use std::env;
-use core::{AstNode, modulate};
+use core::{AstNode, modulate, demodulate};
 
 pub struct ProxyClient {
     server_url: String,
@@ -21,7 +22,13 @@ impl ProxyClient {
         }
     }
 
-    fn send(&self, encoded_args: &str, purpose: &str /* for logging */) -> Result<String, Error> {
+    fn send(
+        &self,
+        args: Rc<AstNode>,
+        purpose: &str /* for logging */
+    ) -> Result<Rc<AstNode>, Error> {
+        let encoded_args = modulate(args);
+
         let param = self.api_key.as_ref()
             .map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
         let url = self.server_url.clone() + "/aliens/send" + &param;
@@ -38,7 +45,8 @@ impl ProxyClient {
         }
 
         let body = resp.text()?;
-        Ok(body)
+        let decoded_body = demodulate(&body);
+        Ok(decoded_body)
     }
 
     pub fn join(&self) -> Result<(), Error> {
@@ -47,8 +55,7 @@ impl ProxyClient {
             AstNode::make_number(self.player_key),
             AstNode::make_nil(),
         ]);
-        let encoded_args = modulate(args);
-        let resp = self.send(&encoded_args, "JOIN")?;
+        let resp = self.send(args, "JOIN")?;
         println!("JOIN: resp={}", resp);
         Ok(())
     }
@@ -64,8 +71,7 @@ impl ProxyClient {
                 AstNode::make_number(0),
             ]),
         ]);
-        let encoded_args = modulate(args);
-        let resp = self.send(&encoded_args, "START")?;
+        let resp = self.send(args, "START")?;
         println!("START: resp={}", resp);
         Ok(())
     }
