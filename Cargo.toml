@@ -23,3 +23,6 @@ members = [
 # [[bin]]
 # name = "galaxy_evaluator"
 # path = "app/src/galaxy_evaluator.rs"
+
+[profile.release]
+debug = true

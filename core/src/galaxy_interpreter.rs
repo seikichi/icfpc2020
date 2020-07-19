@@ -221,6 +221,9 @@ impl AstNode {
         }
         panic!("{:#?} it is not number", self);
     }
+    pub fn is_nil(&self) -> bool {
+        self.value == Function::Nil
+    }
 }
 
 fn modulate_number(v: i64) -> String {
@@ -291,8 +294,8 @@ fn demodulate_number(s: &Vec<char>, index: usize) -> (i64, usize) {
         index += 1;
     }
     index += 1;
-    let mut v = 0;
-    let mut bit = 1 << (4 * n4_bits - 1);
+    let mut v: u64 = 0;
+    let mut bit: u64 = 1 << (4 * n4_bits - 1);
     for _i in 0..(4 * n4_bits) {
         if s[index] == '1' {
             v |= bit;
@@ -300,7 +303,7 @@ fn demodulate_number(s: &Vec<char>, index: usize) -> (i64, usize) {
         index += 1;
         bit >>= 1;
     }
-    return (sign * v, index);
+    return (sign * (v as i64), index);
 }
 
 fn demodulate_inner(s: &Vec<char>, index: usize) -> (Rc<AstNode>, usize) {
@@ -995,6 +998,10 @@ fn test_modulate() {
             AstNode::make_cons(AstNode::make_number(2), AstNode::make_nil(),)
         )) == "1101100001110110001000"
     );
+    assert!(
+        modulate(AstNode::make_number(9223372036854775807))
+        == "01111111111111111100111111111111111111111111111111111111111111111111111111111111111"
+    );
 }
 
 #[test]
@@ -1020,6 +1027,16 @@ fn test_demodulate() {
                 AstNode::make_number(1),
                 AstNode::make_cons(AstNode::make_number(2), AstNode::make_nil(),)
             )
+    );
+    assert!(
+        demodulate(
+            &"01111111111111111100100011111101001111100001001011100110100001101100001111000011101"
+        ) == AstNode::make_number(5181937378473156125)
+    );
+    assert!(
+        demodulate(
+            &"01111111111111111100111111111111111111111111111111111111111111111111111111111111111"
+        ) == AstNode::make_number(9223372036854775807)
     );
 }
 
