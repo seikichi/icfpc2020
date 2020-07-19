@@ -29,6 +29,7 @@ fn parse_cells(cells: &[Function]) -> (String, &[Function]) {
             let (arg, rest2) = parse_cells(&rest1);
             (format!("(_ap {} {})", fun, arg), rest2)
         }
+        Function::List => unimplemented!(),
     }
 }
 

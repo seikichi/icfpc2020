@@ -162,12 +162,15 @@ impl AstNode {
             children: vec![],
         })
     }
+    #[allow(dead_code)]
     pub fn make_nil() -> Rc<Self> {
         Self::make_leaf(Function::Nil)
     }
+    #[allow(dead_code)]
     pub fn make_number(v: i64) -> Rc<Self> {
         Self::make_leaf(Function::Number(v))
     }
+    #[allow(dead_code)]
     pub fn make_vector(x: i64, y: i64) -> Rc<Self> {
         Rc::new(AstNode {
             value: Function::Cons,
