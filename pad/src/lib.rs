@@ -75,7 +75,6 @@ impl GalaxyEvaluatorProxy {
         self.flag = node.get_list_item(0).get_number();
         self.state = node.get_list_item(1);
         let data = node.get_list_item(2);
-
         self.update_cells(data.clone());
     }
 

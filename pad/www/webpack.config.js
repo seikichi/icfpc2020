@@ -11,4 +11,14 @@ module.exports = {
   plugins: [
     new CopyWebpackPlugin(['index.html'])
   ],
+  devServer: {
+    proxy: {
+      '/api': {
+        target: 'https://icfpc2020-api.testkontur.ru',
+        pathRewrite: { '^/api': '' },
+        secure: false,
+        changeOrigin: true,
+      }
+    }
+  }
 };
