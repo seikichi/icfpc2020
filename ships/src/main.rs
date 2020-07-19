@@ -172,7 +172,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     loop {
         let dist_to_planet = prev_pos.abs();
 
-        let commands = if dist_to_planet < 50.0 {
+        let commands = if dist_to_planet < 50.0 || prev_vel.abs() < 15.0 {
             let v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
             info!("@@@@ [{:?}] v={}", role, v);
             let acc = Command::Accelerate{
