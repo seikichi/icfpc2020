@@ -107,14 +107,14 @@ impl ProxyClient {
                 // max 388, 1, 4, 4
                 // max 232, 40, 4, 4
                 Role::Attacker => AstNode::make_list(&vec![
-                    AstNode::make_number(232),
-                    AstNode::make_number(56),
-                    AstNode::make_number(4),
-                    AstNode::make_number(4),
+                    AstNode::make_number(86),
+                    AstNode::make_number(58),
+                    AstNode::make_number(16),
+                    AstNode::make_number(1),
                 ]),
                 Role::Defender => AstNode::make_list(&vec![
-                    AstNode::make_number(392),
-                    AstNode::make_number(0),
+                    AstNode::make_number(232),
+                    AstNode::make_number(40),
                     AstNode::make_number(4),
                     AstNode::make_number(4),
                 ]),
@@ -236,8 +236,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
     let mut prev_x4 = (0, 0, 0, 0);
-    let mut prev_x5 = 0;
-    let mut prev_x6 = 0;
+    let mut prev_x5 = 0; // ヒート的な値
+    let mut prev_x6 = 0; // オーバーヒートの上限
     let mut prev_x7 = 0;
     let mut prev_opponent_pos = Vector::new(0, 0);
     let mut prev_opponent_vel = Vector::new(0, 0);
@@ -287,7 +287,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 commands.push(acc);
             }
             // 殴る
-            if prev_x5 + prev_x4.1 < prev_x6 {
+            if prev_x5 + prev_x4.1 < prev_x6 { // 温度が大丈夫そうなら
                 let beam = Command::Shoot{
                     ship_id: ship_id,
                     target: next_opponent_pos,
