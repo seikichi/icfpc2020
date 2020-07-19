@@ -9,18 +9,21 @@ use core::{AstNode, modulate};
 pub struct ProxyClient {
     server_url: String,
     player_key: i64,
+    api_key: Option<String>,
 }
 
 impl ProxyClient {
-    pub fn new(server_url: &str, player_key: i64) -> Self {
+    pub fn new(server_url: &str, player_key: i64, api_key: Option<String>) -> Self {
         Self {
             server_url: server_url.to_owned(),
             player_key: player_key,
+            api_key: api_key,
         }
     }
 
     fn send(self, encoded_args: &str, purpose: &str /* for logging */) -> Result<String, Error> {
-        let url = self.server_url + "/aliens/send";
+        let param = self.api_key.map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
+        let url = self.server_url + "/aliens/send" + &param;
 
         println!("Request({}): url={}, body={}", purpose, url, encoded_args);
 
@@ -59,13 +62,14 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let default_server_url = "https://icfpc2020-api.testkontur.ru";
     let default_player_key: i64 = 123456789;
+    let api_key = Some("c793f2239e4f4b4bbb842c399878dec4".to_owned());
 
     let server_url = if args.len() >= 2 { &args[1] } else { default_server_url };
     let player_key = if args.len() >= 3 { args[2].parse::<i64>()? } else { default_player_key };
 
     println!("ServerUrl: {}; PlayerKey: {}", server_url, player_key);
 
-    let client = ProxyClient::new(server_url, player_key);
+    let client = ProxyClient::new(server_url, player_key, api_key);
 
     client.join()?;
 
