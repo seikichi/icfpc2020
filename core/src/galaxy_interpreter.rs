@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::convert::From;
 use std::fmt;
-use std::fs;
 use std::rc::Rc;
 use std::thread;
 
 const USE_LIST: bool = false;
+const GALAXY_TEXT: &str = include_str!("../../resource/galaxy.txt");
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Function {
@@ -93,8 +93,7 @@ impl Statement {
 }
 
 pub fn load() -> HashMap<i64, Statement> {
-    fs::read_to_string("resource/galaxy.txt")
-        .unwrap()
+    GALAXY_TEXT
         .split("\n")
         .map(|s| {
             let statement = Statement::new(s);
