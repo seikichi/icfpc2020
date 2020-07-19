@@ -102,7 +102,7 @@ impl ProxyClient {
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
             AstNode::make_list(&vec![
-                AstNode::make_number(510),
+                AstNode::make_number(1),
                 AstNode::make_number(1),
                 AstNode::make_number(1),
                 AstNode::make_number(1),
