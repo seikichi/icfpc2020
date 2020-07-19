@@ -174,7 +174,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 
 fn create_players(api_key: Option<String>, server_url: &str) -> Result<(i64, i64), Error> {
     let args = AstNode::make_list(&vec![
-        AstNode::make_number(1)
+        AstNode::make_number(1),
+        AstNode::make_number(0),
     ]);
     let resp = send(api_key, server_url, args, "CREATE")?;
     let pair = resp.get_list_item(1);
