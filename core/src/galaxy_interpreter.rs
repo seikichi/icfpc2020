@@ -986,6 +986,10 @@ fn test_modulate() {
             AstNode::make_cons(AstNode::make_number(2), AstNode::make_nil(),)
         )) == "1101100001110110001000"
     );
+    assert!(
+        modulate(AstNode::make_number(9223372036854775807))
+        == "01111111111111111100111111111111111111111111111111111111111111111111111111111111111"
+    );
 }
 
 #[test]
