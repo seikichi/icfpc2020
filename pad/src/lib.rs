@@ -18,3 +18,23 @@ pub fn evaluate_galaxy() -> String {
     let node = evaluator.evaluate(AstNode::make_nil(), AstNode::make_vector(0, 0));
     format!("{:#?}", node)
 }
+
+#[wasm_bindgen]
+pub struct GalaxyEvaluatorProxy {
+    evaluator: GalaxyEvaluator,
+}
+
+#[wasm_bindgen]
+impl GalaxyEvaluatorProxy {
+    pub fn new() -> Self {
+        let mut evaluator = GalaxyEvaluator::new();
+        Self { evaluator }
+    }
+
+    pub fn interact(&mut self) -> String {
+        let node = self
+            .evaluator
+            .evaluate(AstNode::make_nil(), AstNode::make_vector(0, 0));
+        format!("HAHAHA: {:#?}", node)
+    }
+}

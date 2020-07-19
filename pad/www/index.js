@@ -1,3 +1,5 @@
-import * as wasm from "pad";
+import { GalaxyEvaluatorProxy } from "pad";
 
-console.log(wasm.evaluate_galaxy());
+const proxy = GalaxyEvaluatorProxy.new()
+
+console.log(proxy.interact());
