@@ -77,6 +77,15 @@ impl GameState {
             ships_and_commands,
         })
     }
+
+    pub fn find_ship_info(&self, role: Role) -> ShipAndAppliedCommands {
+        for ship_and_commands in self.ships_and_commands.iter() {
+            if ship_and_commands.ship.role == role {
+                return ship_and_commands.clone();
+            }
+        }
+        panic!("the role not found: {:?}", role)
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

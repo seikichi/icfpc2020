@@ -165,6 +165,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         return Ok(());
     }
 
+    let ship_id = resp.game_state.unwrap().find_ship_info(role).ship.ship_id;
+
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
     loop {
@@ -174,12 +176,12 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         } 
         info!("@@@@ [{:?}] v={}", role, v);
         let mut command1 = Command::Accelerate{
-            ship_id: if role == Role::Defender { 0 } else { 1 },
+            ship_id: ship_id,
             vector: v
         };
         let resp = client.commands(&vec![command1])?;
         info!("[{:?}] GameResponse: {:?}", role, resp);
-        let ship = resp.game_state.unwrap().ships_and_commands[0].ship;
+        let ship = resp.game_state.unwrap().find_ship_info(role).ship;
         info!("@@@@ [{:?}] pos={}, vel={}", role, ship.position, ship.velocity);
         if resp.stage == GameStage::Finished {
             return Ok(());
