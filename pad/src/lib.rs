@@ -26,6 +26,10 @@ pub struct GalaxyEvaluatorProxy {
     current: Rc<AstNode>,
 
     cells: Vec<Vec<u32>>,
+    ymin: i64,
+    xmin: i64,
+    ymax: i64,
+    xmax: i64,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -46,6 +50,10 @@ impl GalaxyEvaluatorProxy {
             evaluator,
             current,
             cells: vec![vec![]],
+            ymin: 0,
+            xmin: 0,
+            ymax: 0,
+            xmax: 0,
         }
     }
 
@@ -60,7 +68,7 @@ impl GalaxyEvaluatorProxy {
     pub fn debug(&self) -> String {
         //format!("{:#?}", self.current.get_list_item(2))
         // format!("{:?}", self.parse_data())
-        format!("{:#?}", self.cells)
+        // format!("{:#?}", self.cells[6])
     }
 
     pub fn width(&self) -> u32 {
@@ -95,6 +103,10 @@ impl GalaxyEvaluatorProxy {
         let width = xmax - xmin + 1;
         let height = ymax - ymin + 1;
 
+        self.ymin = ymin;
+        self.xmin = xmin;
+        self.ymax = ymax;
+        self.xmax = xmax;
         self.cells = vec![vec![0; width as usize]; height as usize];
 
         for (i, points) in points_lists.iter().enumerate() {
