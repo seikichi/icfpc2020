@@ -103,21 +103,22 @@ impl ProxyClient {
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
             match role {
-                Role::Attacker =>
-                    AstNode::make_list(&vec![
-                        AstNode::make_number(232),
-                        AstNode::make_number(40),
-                        AstNode::make_number(4),
-                        AstNode::make_number(4),
-                    ]),
-                Role::Defender =>
-                    AstNode::make_list(&vec![
-                        AstNode::make_number(392),
-                        AstNode::make_number(0),
-                        AstNode::make_number(4),
-                        AstNode::make_number(4),
-                    ]),
-            }
+                // max 392, 0, 4, 4
+                // max 388, 1, 4, 4
+                // max 232, 40, 4, 4
+                Role::Attacker => AstNode::make_list(&vec![
+                    AstNode::make_number(232),
+                    AstNode::make_number(56),
+                    AstNode::make_number(4),
+                    AstNode::make_number(4),
+                ]),
+                Role::Defender => AstNode::make_list(&vec![
+                    AstNode::make_number(392),
+                    AstNode::make_number(0),
+                    AstNode::make_number(4),
+                    AstNode::make_number(4),
+                ]),
+            },
         ]);
         let resp = self.send(args, "START")?;
         info!("START: resp={}", resp);
