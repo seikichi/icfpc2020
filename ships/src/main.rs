@@ -103,10 +103,10 @@ impl ProxyClient {
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
             AstNode::make_list(&vec![
-                AstNode::make_number(1),
-                AstNode::make_number(1),
-                AstNode::make_number(1),
-                AstNode::make_number(1),
+                AstNode::make_number(254),
+                AstNode::make_number(4),
+                AstNode::make_number(4),
+                AstNode::make_number(4),
             ]),
         ]);
         let resp = self.send(args, "START")?;
@@ -133,6 +133,21 @@ impl ProxyClient {
 #[fail(display = "Request failed")]
 pub struct RequestFailedError {}
 
+fn normalize_dir(v: Vector) -> Vector {
+    let mut best = Vector::new(0, 0);
+    let mut best_cosine = 0;
+    for y in -1..=1 {
+        for x in -1..=1 {
+            let cosine = v.x * x + v.y * y;
+            if cosine > best_cosine {
+                best = Vector::new(x, y);
+                best_cosine = cosine;
+            }
+        }
+    }
+    best
+}
+
 fn play(client: ProxyClient) -> Result<(), Error> {
     info!("Player: {}", client.player_key);
 
@@ -153,16 +168,19 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
     loop {
-        let command1 = Command::Accelerate{
-            ship_id: 0,
-            vector: Vector::new(prev_pos.y, -prev_pos.x)
+        let mut v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
+        if role == Role::Defender {
+            v = Vector::new(-v.x, -v.y);
+        } 
+        info!("@@@@ [{:?}] v={}", role, v);
+        let mut command1 = Command::Accelerate{
+            ship_id: if role == Role::Defender { 0 } else { 1 },
+            vector: v
         };
         let resp = client.commands(&vec![command1])?;
-        //info!("[{:?}] GameResponse: {:?}", role, resp);
+        info!("[{:?}] GameResponse: {:?}", role, resp);
         let ship = resp.game_state.unwrap().ships_and_commands[0].ship;
-        if role == Role::Defender {
-            info!("@@@@ [{:?}] pos={}, vel={}", role, ship.position, ship.velocity);
-        }
+        info!("@@@@ [{:?}] pos={}, vel={}", role, ship.position, ship.velocity);
         if resp.stage == GameStage::Finished {
             return Ok(());
         }
