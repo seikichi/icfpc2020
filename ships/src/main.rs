@@ -3,30 +3,27 @@ extern crate reqwest;
 
 use failure::Error;
 use failure::Fail;
-use http_body::Body as _;
-use hyper::{Body, Client, Method, Request, StatusCode};
 use std::env;
-use std::process;
+use core::{AstNode, modulate};
 
 pub struct ProxyClient {
     server_url: String,
-    player_key: String,
+    player_key: i64,
 }
 
 impl ProxyClient {
-    pub fn new(server_url: &str, player_key: &str) -> Self {
+    pub fn new(server_url: &str, player_key: i64) -> Self {
         Self {
             server_url: server_url.to_owned(),
-            player_key: player_key.to_owned(),
+            player_key: player_key,
         }
     }
 
-    fn send(self) -> Result<String, Error> {
+    fn send(self, encoded_args: &str) -> Result<String, Error> {
         let url = self.server_url + "/alians/send";
 
-        let body = format!("{}", self.player_key);
         let client = reqwest::blocking::Client::new();
-        let resp = client.post(&url).body(body).send()?;
+        let resp = client.post(&url).body(encoded_args.to_owned()).send()?;
 
         if !resp.status().is_success() {
             let e = RequestFailedError {}; // TODO: レスポンスの情報を埋める
@@ -34,6 +31,18 @@ impl ProxyClient {
         }
         let body = resp.text()?;
         Ok(body)
+    }
+
+    pub fn join(self) -> Result<(), Error> {
+        let args = AstNode::make_list(&vec![
+            AstNode::make_number(2),
+            AstNode::make_number(self.player_key),
+            AstNode::make_nil(),
+        ]);
+        let encoded_args = modulate(args);
+        let resp = self.send(&encoded_args)?;
+        println!("JOIN: resp={}", resp);
+        Ok(())
     }
 }
 
@@ -46,45 +55,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args: Vec<String> = env::args().collect();
 
     let server_url = &args[1];
-    let player_key = &args[2];
+    let player_key = args[2].parse::<i64>()?;
 
     println!("ServerUrl: {}; PlayerKey: {}", server_url, player_key);
 
-    let client = Client::new();
-    let req = Request::builder()
-        .method(Method::POST)
-        .uri(server_url)
-        .body(Body::from(format!("{}", player_key)))?;
+    let client = ProxyClient::new(server_url, player_key);
 
-    match client.request(req).await {
-        Ok(mut res) => match res.status() {
-            StatusCode::OK => {
-                print!("Server response: ");
-                while let Some(chunk) = res.body_mut().data().await {
-                    match chunk {
-                        Ok(content) => println!("{:?}", content),
-                        Err(why) => println!("error reading body: {:?}", why),
-                    }
-                }
-            }
-            _ => {
-                println!("Unexpected server response:");
-                println!("HTTP code: {}", res.status());
-                print!("Response body: ");
-                while let Some(chunk) = res.body_mut().data().await {
-                    match chunk {
-                        Ok(content) => println!("{:?}", content),
-                        Err(why) => println!("error reading body: {:?}", why),
-                    }
-                }
-                process::exit(2);
-            }
-        },
-        Err(err) => {
-            println!("Unexpected server response:\n{}", err);
-            process::exit(1);
-        }
-    }
+    client.join()?;
 
     Ok(())
 }
