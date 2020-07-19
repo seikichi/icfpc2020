@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::convert::From;
+use std::fmt;
 use std::fs;
 use std::rc::Rc;
 use std::thread;
+
+const USE_LIST: bool = false;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Function {
@@ -26,6 +29,7 @@ pub enum Function {
     False,
     Number(i64),
     Variable(i64),
+    List,
 }
 
 impl From<&str> for Function {
@@ -100,20 +104,40 @@ pub fn load() -> HashMap<i64, Statement> {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
-struct AstNode {
-    value: Function,
-    children: Vec<Rc<AstNode>>,
+pub struct AstNode {
+    pub value: Function,
+    pub children: Vec<Rc<AstNode>>,
+}
+impl fmt::Display for AstNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.value {
+            Function::Cons => write!(f, "({} {})", self.children[0], self.children[1]),
+            Function::Number(v) => write!(f, "{}", v),
+            Function::Nil => write!(f, "nil"),
+            Function::List => {
+                write!(f, "[")?;
+                for i in 0..self.children.len() {
+                    if i != 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{}", self.children[i])?;
+                }
+                write!(f, "]")
+            }
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl AstNode {
     #[allow(dead_code)]
-    fn parse_str(s: &str) -> Rc<Self> {
+    pub fn parse_str(s: &str) -> Rc<Self> {
         let statement = Statement::new(s);
         let (node, index) = AstNode::parse_cells(&statement.cells, 0);
         assert!(index == statement.cells.len() - 1);
         return node;
     }
-    fn parse_cells(cells: &Vec<Function>, cell_index: usize) -> (Rc<Self>, usize) {
+    pub fn parse_cells(cells: &Vec<Function>, cell_index: usize) -> (Rc<Self>, usize) {
         let value = cells[cell_index];
         match value {
             Function::Ap => {
@@ -134,11 +158,38 @@ impl AstNode {
             }
         }
     }
-    fn make_leaf(function: Function) -> Rc<Self> {
+    pub fn make_leaf(function: Function) -> Rc<Self> {
         Rc::new(AstNode {
             value: function,
             children: vec![],
         })
+    }
+    #[allow(dead_code)]
+    pub fn make_nil() -> Rc<Self> {
+        Self::make_leaf(Function::Nil)
+    }
+    #[allow(dead_code)]
+    pub fn make_number(v: i64) -> Rc<Self> {
+        Self::make_leaf(Function::Number(v))
+    }
+    #[allow(dead_code)]
+    pub fn make_vector(x: i64, y: i64) -> Rc<Self> {
+        Rc::new(AstNode {
+            value: Function::Cons,
+            children: vec![
+                Self::make_leaf(Function::Number(x)),
+                Self::make_leaf(Function::Number(y)),
+            ],
+        })
+    }
+    #[allow(dead_code)]
+    pub fn get_list_item(&self, index: usize) -> Rc<AstNode> {
+        assert!(self.value == Function::Cons);
+        if index == 0 {
+            self.children[0].clone()
+        } else {
+            self.children[1].get_list_item(index - 1)
+        }
     }
 }
 
@@ -356,17 +407,13 @@ fn resolve_ast_node(
     panic!("invalid status");
 }
 
-fn evaluate(
+pub fn evaluate(
     node: Rc<AstNode>,
     ast_nodes: &mut HashMap<i64, Rc<AstNode>>,
     memo: &mut HashMap<Rc<AstNode>, Rc<AstNode>>,
     depth: usize,
     use_memo: bool,
 ) -> Rc<AstNode> {
-    // if depth > 100100 {
-    //     println!("{:#?}", node);
-    //     panic!("too deep!!")
-    // }
     match node.value {
         Function::Ap => {
             let lhs = evaluate(
@@ -427,7 +474,7 @@ fn evaluate(
     }
 }
 
-fn usual(
+pub fn usual(
     node: Rc<AstNode>,
     ast_nodes: &mut HashMap<i64, Rc<AstNode>>,
     memo: &mut HashMap<Rc<AstNode>, Rc<AstNode>>,
@@ -449,10 +496,24 @@ fn usual(
         Function::Cons => {
             let left = usual(evaluated_children[0].clone(), ast_nodes, memo, depth + 1);
             let right = usual(evaluated_children[1].clone(), ast_nodes, memo, depth + 1);
-            return Rc::new(AstNode {
-                value: Function::Cons,
-                children: vec![left, right],
-            });
+            if USE_LIST && right.value == Function::Nil {
+                return Rc::new(AstNode {
+                    value: Function::List,
+                    children: vec![left],
+                });
+            } else if right.value == Function::List {
+                let mut children = vec![left];
+                children.append(&mut right.children.clone());
+                return Rc::new(AstNode {
+                    value: Function::List,
+                    children: children,
+                });
+            } else {
+                return Rc::new(AstNode {
+                    value: Function::Cons,
+                    children: vec![left, right],
+                });
+            }
         }
         Function::Car => {
             let left = usual(evaluated_children[0].clone(), ast_nodes, memo, depth + 1);
@@ -492,7 +553,7 @@ fn interpreter() {
     let node = AstNode::parse_str(s);
     let node = evaluate(node.clone(), &mut ast_nodes, &mut memo, 0, true);
     let node = usual(node.clone(), &mut ast_nodes, &mut memo, 0);
-    println!("{:#?}", node);
+    println!("{}", node);
     // let node = evaluate(ast_nodes[&1141].clone(), &mut ast_nodes, &mut memo, 0);
     // println!("{:#?}", node);
     // let node = evaluate(ast_nodes[&1109].clone(), &mut ast_nodes, &mut memo, 0);
