@@ -206,6 +206,12 @@ impl AstNode {
             self.children[1].get_list_item(index - 1)
         }
     }
+    pub fn get_number(&self) -> i64 {
+        if let Function::Number(v) = self.value {
+            return v;
+        }
+        panic!("{:#?} it is not number", self);
+    }
 }
 
 fn modulate_number(v: i64) -> String {
@@ -678,10 +684,7 @@ fn interpreter() {
 
 #[test]
 fn test_make_list() {
-    let list_node = AstNode::make_list(&vec![
-        AstNode::make_number(1),
-        AstNode::make_number(2),
-    ]);
+    let list_node = AstNode::make_list(&vec![AstNode::make_number(1), AstNode::make_number(2)]);
     assert!(format!("{}", list_node) == "(1 (2 nil))");
 }
 
@@ -1022,4 +1025,11 @@ fn test_demodulate() {
                 AstNode::make_cons(AstNode::make_number(2), AstNode::make_nil(),)
             )
     );
+}
+
+#[test]
+fn test_get_number() {
+    assert!(AstNode::make_number(3).get_number() == 3);
+    assert!(AstNode::make_number(1213).get_number() == 1213);
+    assert!(AstNode::make_number(-123).get_number() == -123);
 }
