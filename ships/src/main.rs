@@ -211,6 +211,10 @@ fn simulate_orbit_out_of_safe_area(mut pos: Vector, mut vel: Vector, n: isize, s
     return n+1;
 }
 
+fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
+    return (v1.dot(&v2) as f64) / (v1.abs() * v2.abs());
+}
+
 fn play(client: ProxyClient) -> Result<(), Error> {
     info!("Player: {}", client.player_key);
 
@@ -240,7 +244,13 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         let out_of_bound_steps = simulate_orbit_out_of_safe_area(prev_pos, prev_vel, 5, 128);
 
         let mut commands = if collide_steps <= 8 {
-            let v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
+            let v1 = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
+            let v2 = normalize_dir(Vector::new(prev_pos.y, -prev_pos.x));
+            let v = if cosine_sim(prev_vel, -v1) > cosine_sim(prev_vel, -v2) {
+                v2
+            } else {
+                v1
+            };
             info!("@@@@ [{:?}] v={}, planet_collide", role, v);
             let acc = Command::Accelerate{
                 ship_id: ship_id,
