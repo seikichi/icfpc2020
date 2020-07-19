@@ -13,7 +13,7 @@ const previous_modulated_vector_elem = document.getElementById("previous-vector-
 const last_send_input_elem = document.getElementById("last-send-input");
 const last_send_output_elem = document.getElementById("last-send-output");
 const last_send_modulated_input_elem = document.getElementById("last-send-input-modulated");
-const last_send_modulated_output_elem = document.getElementById("last-send-input-modulated");
+const last_send_modulated_output_elem = document.getElementById("last-send-output-modulated");
 
 const ctx = canvas.getContext('2d');
 let width = 0;
@@ -80,8 +80,8 @@ const updateInfo = () => {
 
     last_send_input_elem.textContent = last_send_input;
     last_send_output_elem.textContent = last_send_output;
-    last_send_modulated_input.textContent = last_send_input;
-    last_send_modulated_output_elem.textContent = last_send_output;
+    last_send_modulated_input_elem.textContent = last_send_modulated_input;
+    last_send_modulated_output_elem.textContent = last_send_modulated_output;
 };
 
 const interact = async (rows, cols) => {
