@@ -1,4 +1,4 @@
 #!/bin/sh
 
-cd app
+cd ships
 cargo build --release --offline
