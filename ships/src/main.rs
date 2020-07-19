@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let default_server_url = "https://icfpc2020-api.testkontur.ru";
     let default_player_key: i64 = 123456789;
-    let api_key = Some("c793f2239e4f4b4bbb842c399878dec4".to_owned());
+    let api_key = None;
 
     let server_url = if args.len() >= 2 { &args[1] } else { default_server_url };
     let player_key = if args.len() >= 3 { args[2].parse::<i64>()? } else { default_player_key };
