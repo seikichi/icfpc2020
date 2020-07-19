@@ -27,6 +27,7 @@ pub enum Function {
     False,
     Number(i64),
     Variable(i64),
+    List,
 }
 
 impl From<&str> for Function {
@@ -111,6 +112,16 @@ impl fmt::Display for AstNode {
             Function::Cons => write!(f, "({} {})", self.children[0], self.children[1]),
             Function::Number(v) => write!(f, "{}", v),
             Function::Nil => write!(f, "nil"),
+            Function::List => {
+                write!(f, "[")?;
+                for i in 0..self.children.len() {
+                    if i != 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{}", self.children[i])?;
+                }
+                write!(f, "]")
+            }
             _ => unimplemented!(),
         }
     }
@@ -374,10 +385,6 @@ fn evaluate(
     depth: usize,
     use_memo: bool,
 ) -> Rc<AstNode> {
-    // if depth > 100100 {
-    //     println!("{:#?}", node);
-    //     panic!("too deep!!")
-    // }
     match node.value {
         Function::Ap => {
             let lhs = evaluate(
@@ -460,10 +467,24 @@ fn usual(
         Function::Cons => {
             let left = usual(evaluated_children[0].clone(), ast_nodes, memo, depth + 1);
             let right = usual(evaluated_children[1].clone(), ast_nodes, memo, depth + 1);
-            return Rc::new(AstNode {
-                value: Function::Cons,
-                children: vec![left, right],
-            });
+            if right.value == Function::Nil {
+                return Rc::new(AstNode {
+                    value: Function::List,
+                    children: vec![left],
+                });
+            } else if right.value == Function::List {
+                let mut children = vec![left];
+                children.append(&mut right.children.clone());
+                return Rc::new(AstNode {
+                    value: Function::List,
+                    children: children,
+                });
+            } else {
+                return Rc::new(AstNode {
+                    value: Function::Cons,
+                    children: vec![left, right],
+                });
+            }
         }
         Function::Car => {
             let left = usual(evaluated_children[0].clone(), ast_nodes, memo, depth + 1);
