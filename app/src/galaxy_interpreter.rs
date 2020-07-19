@@ -5,6 +5,8 @@ use std::fs;
 use std::rc::Rc;
 use std::thread;
 
+const USE_LIST: bool = false;
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Function {
     Ap,
@@ -179,6 +181,15 @@ impl AstNode {
                 Self::make_leaf(Function::Number(y)),
             ],
         })
+    }
+    #[allow(dead_code)]
+    pub fn get_list_item(&self, index: usize) -> Rc<AstNode> {
+        assert!(self.value == Function::Cons);
+        if index == 0 {
+            self.children[0].clone()
+        } else {
+            self.children[1].get_list_item(index - 1)
+        }
     }
 }
 
@@ -485,7 +496,7 @@ pub fn usual(
         Function::Cons => {
             let left = usual(evaluated_children[0].clone(), ast_nodes, memo, depth + 1);
             let right = usual(evaluated_children[1].clone(), ast_nodes, memo, depth + 1);
-            if right.value == Function::Nil {
+            if USE_LIST && right.value == Function::Nil {
                 return Rc::new(AstNode {
                     value: Function::List,
                     children: vec![left],

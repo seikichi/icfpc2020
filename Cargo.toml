@@ -25,6 +25,8 @@ name = "galaxy_evaluator"
 path = "app/src/galaxy_evaluator.rs"
 
 [dependencies]
-tokio = { version = "0.2.21", features = ["macros"] }
+tokio = { version = "0.2.21", features = ["full"] }
 hyper = "0.13.5"
 http-body = "0.3.1"
+failure = "0.1.8"
+reqwest = { version = "0.10", features = ["json"] }

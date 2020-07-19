@@ -26,7 +26,6 @@ impl GalaxyEvaluator {
         }
     }
     pub fn evaluate(&mut self, state: Rc<AstNode>, vect: Rc<AstNode>) -> Rc<AstNode> {
-        // TOCO check state
         assert!(vect.value == Function::Cons);
         assert!(vect.children.len() == 2);
         let node = Rc::new(AstNode {
@@ -41,8 +40,6 @@ impl GalaxyEvaluator {
         });
         let node = evaluate(node, &mut self.ast_nodes, &mut self.memo, 0, true);
         let node = usual(node.clone(), &mut self.ast_nodes, &mut self.memo, 0);
-        assert!(node.value == Function::List);
-        assert!(node.children.len() == 3);
         return node;
     }
 }
