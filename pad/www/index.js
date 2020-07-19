@@ -1,22 +1,53 @@
 import { GalaxyEvaluatorProxy } from "pad";
 
-const proxy = GalaxyEvaluatorProxy.new()
-proxy.interact(0, 0);
-console.log(proxy.debug());
+const canvas = document.getElementById("galaxy-canvas");
+const ctx = canvas.getContext('2d');
+let width = 0;
+let height = 0;
 
+const apiKey = (new URL(document.location)).searchParams.get('apiKey')
+console.log(apiKey);
 const CELL_SIZE = 20; // px
 const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
 const ALIVE_COLOR = "#000000";
 
-let width = proxy.width();
-let height = proxy.height();
+const colors = [
+    "rgba(128,   0, 0, 0.5)",
+    "rgba(  0, 128, 0, 0.5)",
+    "rgba(  0,   0, 128, 0.5)",
+    "rgba(255,   0, 0, 0.5)",
+    "rgba(  0, 255, 0, 0.5)",
+    "rgba(  0,   0, 255, 0.5)",
+    "rgba(128, 128, 0, 0.5)",
+    "rgba(  0, 128, 128, 0.5)",
+    "rgba(128,   0, 128, 0.5)",
+];
 
-const canvas = document.getElementById("galaxy-canvas");
-canvas.height = (CELL_SIZE + 1) * height + 1;
-canvas.width = (CELL_SIZE + 1) * width + 1;
+const proxy = GalaxyEvaluatorProxy.new()
 
-const ctx = canvas.getContext('2d');
+const interact = async (rows, cols) => {
+    proxy.interact(rows, cols);
+
+    while (proxy.needs_send()) {
+        const body = proxy.get_send_body();
+        const url = `/api/aliens/send?apiKey=${apiKey}`;
+        const response = await fetch(url, { method: 'POST', body: body });
+        const text = await response.text();
+        proxy.continue_interaction(text);
+    }
+};
+
+const update = async (row, col) => {
+    await interact(row, col);
+    console.log(proxy.debug());
+
+    width = proxy.width();
+    height = proxy.height();
+
+    canvas.height = (CELL_SIZE + 1) * height + 1;
+    canvas.width = (CELL_SIZE + 1) * width + 1;
+};
 
 const drawGrid = () => {
     ctx.beginPath();
@@ -36,18 +67,6 @@ const drawGrid = () => {
 
     ctx.stroke();
 };
-
-let colors = [
-    "rgba(128,   0, 0, 0.5)",
-    "rgba(  0, 128, 0, 0.5)",
-    "rgba(  0,   0, 128, 0.5)",
-    "rgba(255,   0, 0, 0.5)",
-    "rgba(  0, 255, 0, 0.5)",
-    "rgba(  0,   0, 255, 0.5)",
-    "rgba(128, 128, 0, 0.5)",
-    "rgba(  0, 128, 128, 0.5)",
-    "rgba(128,   0, 128, 0.5)",
-];
 
 const drawCells = () => {
     ctx.globalAlpha = 0.5;
@@ -86,7 +105,7 @@ const drawCells = () => {
     ctx.stroke();
 };
 
-canvas.addEventListener("click", event => {
+canvas.addEventListener("click", async event => {
     const boundingRect = canvas.getBoundingClientRect();
 
     const scaleX = canvas.width / boundingRect.width;
@@ -99,21 +118,13 @@ canvas.addEventListener("click", event => {
     const col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1)), width - 1);
 
     console.log(row, col);
-    proxy.interact(row, col);
-    console.log(proxy.debug());
-
-    width = proxy.width();
-    height = proxy.height();
-
-    console.log(`width = ${width}, height = ${height}`)
-    canvas.height = (CELL_SIZE + 1) * height + 1;
-    canvas.width = (CELL_SIZE + 1) * width + 1;
-
-
+    await update(row, col);
     drawGrid();
     drawCells();
 });
 
-console.log(`width = ${width}, height = ${height}`)
-drawGrid();
-drawCells();
+(async () => {
+    await update(0, 0);
+    drawGrid();
+    drawCells();
+})();

@@ -1,6 +1,7 @@
 mod utils;
 
-use core::{AstNode, Function, GalaxyEvaluator};
+use core::{demodulate, modulate, AstNode, Function, GalaxyEvaluator};
+use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
@@ -23,6 +24,7 @@ pub fn evaluate_galaxy() -> String {
 #[wasm_bindgen]
 pub struct GalaxyEvaluatorProxy {
     evaluator: GalaxyEvaluator,
+    data: Rc<AstNode>,
     state: Rc<AstNode>,
 
     cells: Vec<Vec<u32>>,
@@ -45,12 +47,9 @@ struct Point {
 impl GalaxyEvaluatorProxy {
     pub fn new() -> Self {
         let evaluator = GalaxyEvaluator::new();
-        let current = Rc::new(AstNode {
-            value: Function::Number(42),
-            children: vec![],
-        });
         Self {
             evaluator,
+            data: AstNode::make_nil(),
             state: AstNode::make_nil(),
             cells: vec![vec![]],
             flag: 0,
@@ -60,6 +59,27 @@ impl GalaxyEvaluatorProxy {
             xmax: 0,
             y: 0,
             x: 0,
+        }
+    }
+
+    pub fn needs_send(&self) -> bool {
+        self.flag != 0
+    }
+
+    pub fn get_send_body(&self) -> String {
+        modulate(self.data.clone())
+    }
+
+    pub fn continue_interaction(&mut self, data: String) {
+        let node = self
+            .evaluator
+            .evaluate(self.state.clone(), demodulate(&data));
+        self.flag = node.get_list_item(0).get_number();
+        self.state = node.get_list_item(1);
+        self.data = node.get_list_item(2);
+
+        if self.flag == 0 {
+            self.update_cells(self.data.clone());
         }
     }
 
@@ -74,8 +94,11 @@ impl GalaxyEvaluatorProxy {
             .evaluate(self.state.clone(), AstNode::make_vector(x as i64, y as i64));
         self.flag = node.get_list_item(0).get_number();
         self.state = node.get_list_item(1);
-        let data = node.get_list_item(2);
-        self.update_cells(data.clone());
+        self.data = node.get_list_item(2);
+
+        if self.flag == 0 {
+            self.update_cells(self.data.clone());
+        }
     }
 
     pub fn debug(&self) -> String {
