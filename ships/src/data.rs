@@ -137,6 +137,12 @@ impl Vector {
         let y = ast.children[1].get_number();
         Self { x, y }
     }
+    pub fn dot(&self, rhs: &Vector) -> i64 {
+        let mut ret = 0;
+        ret += self.x * rhs.x;
+        ret += self.y * rhs.y;
+        return ret;
+    }
 }
 
 impl fmt::Display for Vector {
@@ -170,3 +176,44 @@ impl GameResponse {
         }
     }
 }
+
+// Vector
+impl std::ops::Neg for Vector {
+    type Output = Vector;
+    #[inline]
+    fn neg(self) -> Vector {
+        let mut ret = self;
+        ret.x *= -1;
+        ret.y *= -1;
+        return self;
+    }
+}
+
+macro_rules! vector_vector_ops {
+    ( $trate:ident, $fname:ident, $op:tt) => {
+impl<'a> std::ops::$trate<&'a Vector> for Vector {
+    type Output = Vector;
+    #[inline]
+    fn $fname(self, rhs: &'a Vector) -> Vector {
+        let mut ret = self;
+        ret.x = ret.x $op rhs.x;
+        ret.y = ret.y $op rhs.y;
+        return ret;
+    }
+        }
+    };
+}
+macro_rules! self_self_assign_ops {
+    ( $type:ty, $trate:ident, $fname:ident, $op:tt) => {
+        impl<'a> std::ops::$trate<&'a $type> for $type {
+            #[inline]
+            fn $fname(&mut self, rhs: &'a $type) {
+                *self = self.clone() $op rhs;
+            }
+        }
+    };
+}
+vector_vector_ops!(Add, add, +);
+vector_vector_ops!(Sub, sub, -);
+self_self_assign_ops!(Vector, AddAssign, add_assign, +);
+self_self_assign_ops!(Vector, SubAssign, sub_assign, -);
