@@ -183,6 +183,13 @@ impl AstNode {
         })
     }
     #[allow(dead_code)]
+    pub fn make_cons(l: Rc<AstNode>, r: Rc<AstNode>) -> Rc<Self> {
+        Rc::new(AstNode {
+            value: Function::Cons,
+            children: vec![l.clone(), r.clone()],
+        })
+    }
+    #[allow(dead_code)]
     pub fn get_list_item(&self, index: usize) -> Rc<AstNode> {
         assert!(self.value == Function::Cons);
         if index == 0 {
@@ -190,6 +197,54 @@ impl AstNode {
         } else {
             self.children[1].get_list_item(index - 1)
         }
+    }
+}
+
+fn modulate_number(v: i64) -> String {
+    let mut v = v;
+    let mut ret = "".to_string();
+    if v == 0 {
+        return "010".to_string();
+    } else if v > 0 {
+        ret += "01";
+    } else {
+        ret += "10";
+        v *= -1;
+    }
+    let mut n_4bits = 0;
+    let mut tmp = v;
+    while tmp > 0 {
+        n_4bits += 1;
+        tmp >>= 4;
+    }
+    for _i in 0..n_4bits {
+        ret += "1";
+    }
+    ret += "0";
+    ret += &format!("{:0width$b}", v, width = n_4bits * 4);
+    ret
+}
+
+#[allow(dead_code)]
+pub fn modulate(node: Rc<AstNode>) -> String {
+    match node.value {
+        Function::Nil => "00".to_string(),
+        Function::Number(v) => modulate_number(v),
+        Function::Cons => {
+            "11".to_string()
+                + &modulate(node.children[0].clone())
+                + &modulate(node.children[1].clone())
+        }
+        Function::List => {
+            let mut ret = "".to_string();
+            for child in node.children.iter() {
+                ret += "11";
+                ret += &modulate(child.clone());
+            }
+            ret += "00";
+            ret
+        }
+        _ => unimplemented!(),
     }
 }
 
@@ -840,4 +895,35 @@ fn test_nil_bottom() {
     let node = evaluate(node, &mut ast_nodes, &mut HashMap::new(), 0, true);
     println!("{:#?}", node);
     assert!(node.value == Function::Number(42));
+}
+
+#[test]
+fn test_modulate() {
+    assert!(modulate_number(0) == "010");
+    assert!(modulate_number(1) == "01100001");
+    assert!(modulate_number(2) == "01100010");
+    assert!(modulate_number(-1) == "10100001");
+    assert!(modulate_number(256) == "011110000100000000");
+    assert!(modulate(AstNode::make_number(2)) == "01100010");
+
+    assert!(modulate(AstNode::make_nil()) == "00");
+    assert!(modulate(AstNode::make_cons(AstNode::make_nil(), AstNode::make_nil())) == "110000");
+    assert!(
+        modulate(AstNode::make_cons(
+            AstNode::make_number(0),
+            AstNode::make_nil()
+        )) == "1101000"
+    );
+    assert!(
+        modulate(AstNode::make_cons(
+            AstNode::make_number(1),
+            AstNode::make_number(2)
+        )) == "110110000101100010"
+    );
+    assert!(
+        modulate(AstNode::make_cons(
+            AstNode::make_number(1),
+            AstNode::make_cons(AstNode::make_number(2), AstNode::make_nil(),)
+        )) == "1101100001110110001000"
+    );
 }
