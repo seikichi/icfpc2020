@@ -59,10 +59,89 @@ impl StaticGameInfo {
     }
 }
 
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct GameState {
+    game_tick: i64,
+    // x1,
+    ships_and_commands: Vec<ShipAndAppliedCommands>,
+}
+
+impl GameState {
+    pub fn from_ast(ast: Rc<AstNode>) -> Option<Self> {
+        if ast.is_nil() {
+            return None;
+        }
+        let game_tick = ast.get_list_item(0).get_number();
+        let _ship_and_commands_ast = ast.get_list_item(2);
+        // TODO: ships_and_commands
+        Some(Self {
+            game_tick,
+            ships_and_commands: vec![],
+        })
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct ShipAndAppliedCommands {
+    ship: Ship,
+    // appliedCommands
+}
+
+impl ShipAndAppliedCommands {
+    pub fn from_ast(ast: Rc<AstNode>) -> Self {
+        let ship = Ship::from_ast(ast.get_list_item(0));
+        Self { ship }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct Ship {
+    role: Role,
+    ship_id: i64,
+    position: Vector,
+    velocity: Vector,
+    // x4,
+    // x5,
+    // x6,
+    // x7,
+}
+
+impl Ship {
+    pub fn from_ast(ast: Rc<AstNode>) -> Self {
+        let role_code = ast.get_list_item(0).get_number();
+        let role = Role::from_int(role_code);
+
+        let ship_id = ast.get_list_item(1).get_number();
+        let position = Vector::from_ast(ast.get_list_item(2));
+        let velocity = Vector::from_ast(ast.get_list_item(3));
+        Self {
+            role,
+            ship_id,
+            position,
+            velocity,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct Vector {
+    x: i64,
+    y: i64,
+}
+
+impl Vector {
+    pub fn from_ast(ast: Rc<AstNode>) -> Self {
+        let x = ast.children[0].get_number();
+        let y = ast.children[1].get_number();
+        Self { x, y }
+    }
+}
+
 #[derive(Debug)]
 pub struct GameResponse {
     stage: GameStage,
     static_game_info: StaticGameInfo,
+    game_state: Option<GameState>,
 }
 
 impl GameResponse {
@@ -73,9 +152,13 @@ impl GameResponse {
         let static_game_info_ast = ast.get_list_item(2);
         let static_game_info = StaticGameInfo::from_ast(static_game_info_ast);
 
+        let game_state_ast = ast.get_list_item(3);
+        let game_state = GameState::from_ast(game_state_ast);
+
         Self {
             stage,
             static_game_info,
+            game_state,
         }
     }
 }
@@ -200,6 +283,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         return Ok(());
     }
     info!("Role: {:?}", resp.static_game_info.role);
+    info!("GameResponse: {:?}", resp);
 
     let resp = client.start()?;
     if resp.stage == GameStage::Finished {
