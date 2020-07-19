@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::From;
+use std::fmt;
 use std::fs;
 use std::rc::Rc;
 use std::thread;
@@ -103,6 +104,16 @@ pub fn load() -> HashMap<i64, Statement> {
 struct AstNode {
     value: Function,
     children: Vec<Rc<AstNode>>,
+}
+impl fmt::Display for AstNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.value {
+            Function::Cons => write!(f, "({} {})", self.children[0], self.children[1]),
+            Function::Number(v) => write!(f, "{}", v),
+            Function::Nil => write!(f, "nil"),
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl AstNode {
@@ -492,7 +503,7 @@ fn interpreter() {
     let node = AstNode::parse_str(s);
     let node = evaluate(node.clone(), &mut ast_nodes, &mut memo, 0, true);
     let node = usual(node.clone(), &mut ast_nodes, &mut memo, 0);
-    println!("{:#?}", node);
+    println!("{}", node);
     // let node = evaluate(ast_nodes[&1141].clone(), &mut ast_nodes, &mut memo, 0);
     // println!("{:#?}", node);
     // let node = evaluate(ast_nodes[&1109].clone(), &mut ast_nodes, &mut memo, 0);
