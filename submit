@@ -1,0 +1,19 @@
+#!/bin/sh
+
+confirm_cleanness() {
+	status="$(git status -s)"
+	if [ -n "$status" ]; then
+		echo "ERROR: git repository is not clean. please commit or stash everything!!"
+		exit 1
+	fi
+}
+
+REPO_ROOT="$(cd "$(dirname "$0")"; pwd)"
+cd "$REPO_ROOT/ships"
+
+confirm_cleanness
+
+BRANCH_NAME="submissions/$(date +%Y%m%d%H%M%S)"
+git checkout -b "$BRANCH_NAME"
+git push origin HEAD
+git checkout master
