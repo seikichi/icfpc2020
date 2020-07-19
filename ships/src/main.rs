@@ -1,5 +1,6 @@
 extern crate failure;
 extern crate reqwest;
+#[macro_use] extern crate log;
 
 use failure::Error;
 use failure::Fail;
@@ -67,13 +68,13 @@ impl ProxyClient {
             .map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
         let url = self.server_url.clone() + "/aliens/send" + &param;
 
-        println!("Request({}): url={}, body={}", purpose, url, encoded_args);
+        info!("Request({}): url={}, body={}", purpose, url, encoded_args);
 
         let client = reqwest::blocking::Client::new();
         let resp = client.post(&url).body(encoded_args.to_owned()).send()?;
 
         if !resp.status().is_success() {
-            println!("RequestFailed: status={}, body={}", resp.status(), resp.text()?);
+            error!("RequestFailed: status={}, body={}", resp.status(), resp.text()?);
             let e = RequestFailedError {}; // TODO: レスポンスの情報を埋める
             return Err(From::from(e));
         }
@@ -90,7 +91,7 @@ impl ProxyClient {
             AstNode::make_nil(),
         ]);
         let resp = self.send(args, "JOIN")?;
-        println!("JOIN: resp={}", resp);
+        info!("JOIN: resp={}", resp);
         Ok(GameResponse::from_ast(resp))
     }
 
@@ -106,7 +107,7 @@ impl ProxyClient {
             ]),
         ]);
         let resp = self.send(args, "START")?;
-        println!("START: resp={}", resp);
+        info!("START: resp={}", resp);
         Ok(GameResponse::from_ast(resp))
     }
 
@@ -117,7 +118,7 @@ impl ProxyClient {
             AstNode::make_nil(),
         ]);
         let resp = self.send(args, "COMMANDS")?;
-        println!("COMMANDS: resp={}", resp);
+        info!("COMMANDS: resp={}", resp);
         Ok(GameResponse::from_ast(resp))
     }
 }
@@ -127,6 +128,8 @@ impl ProxyClient {
 pub struct RequestFailedError {}
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    env_logger::init();
+
     let args: Vec<String> = env::args().collect();
 
     let default_server_url = "https://icfpc2020-api.testkontur.ru";
@@ -136,7 +139,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let server_url = if args.len() >= 2 { &args[1] } else { default_server_url };
     let player_key = if args.len() >= 3 { args[2].parse::<i64>()? } else { default_player_key };
 
-    println!("ServerUrl: {}; PlayerKey: {}", server_url, player_key);
+    info!("ServerUrl: {}; PlayerKey: {}", server_url, player_key);
 
     let client = ProxyClient::new(server_url, player_key, api_key);
 
