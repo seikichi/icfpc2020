@@ -1,6 +1,4 @@
-mod galaxy_interpreter;
-
-use galaxy_interpreter::{evaluate, load, usual, AstNode, Function};
+use crate::galaxy_interpreter::{evaluate, load, usual, AstNode, Function};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::thread;

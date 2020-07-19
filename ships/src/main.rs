@@ -1,12 +1,12 @@
 extern crate failure;
 extern crate reqwest;
 
+use failure::Error;
+use failure::Fail;
 use http_body::Body as _;
 use hyper::{Body, Client, Method, Request, StatusCode};
 use std::env;
 use std::process;
-use failure::Error; 
-use failure::Fail;
 
 pub struct ProxyClient {
     server_url: String,
@@ -29,7 +29,7 @@ impl ProxyClient {
         let resp = client.post(&url).body(body).send()?;
 
         if !resp.status().is_success() {
-            let e = RequestFailedError{}; // TODO: レスポンスの情報を埋める
+            let e = RequestFailedError {}; // TODO: レスポンスの情報を埋める
             return Err(From::from(e));
         }
         let body = resp.text()?;
@@ -39,8 +39,7 @@ impl ProxyClient {
 
 #[derive(Fail, Debug)]
 #[fail(display = "Request failed")]
-pub struct RequestFailedError {
-}
+pub struct RequestFailedError {}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

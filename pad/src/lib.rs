@@ -3,7 +3,7 @@ mod utils;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use app::{evaluate, usual, AstNode, Statement};
+use galaxy_evalua
 use wasm_bindgen::prelude::*;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
