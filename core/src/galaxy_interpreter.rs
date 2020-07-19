@@ -213,6 +213,19 @@ impl AstNode {
     pub fn is_nil(&self) -> bool {
         self.value == Function::Nil
     }
+
+    pub fn for_each<F: FnMut(Rc<AstNode>)>(&self, mut f: F) {
+        if self.is_nil() {
+            return;
+        }
+
+        f(self.children[0].clone());
+        let mut cell = self.children[1].clone();
+        while !cell.is_nil() {
+            f(cell.children[0].clone());
+            cell = cell.children[1].clone();
+        }
+    }
 }
 
 fn modulate_number(v: i64) -> String {

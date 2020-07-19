@@ -48,14 +48,19 @@ impl Role {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct StaticGameInfo {
+    maybe_field_size: i64,
     role: Role,
 }
 
 impl StaticGameInfo {
     pub fn from_ast(ast: Rc<AstNode>) -> Self {
+        let maybe_field_size = ast.get_list_item(0).get_number();
         let role_code = ast.get_list_item(1).get_number();
         let role = Role::from_int(role_code);
-        Self { role }
+        Self {
+            maybe_field_size,
+            role,
+        }
     }
 }
 
@@ -72,11 +77,14 @@ impl GameState {
             return None;
         }
         let game_tick = ast.get_list_item(0).get_number();
-        let _ship_and_commands_ast = ast.get_list_item(2);
-        // TODO: ships_and_commands
+        let ships_and_commands_ast = ast.get_list_item(2);
+        let mut ships_and_commands = vec![];
+        ships_and_commands_ast.for_each(|ast| {
+            ships_and_commands.push(ShipAndAppliedCommands::from_ast(ast));
+        });
         Some(Self {
             game_tick,
-            ships_and_commands: vec![],
+            ships_and_commands,
         })
     }
 }
@@ -292,6 +300,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 
     loop {
         let resp = client.commands()?;
+        info!("GameResponse: {:?}", resp);
         if resp.stage == GameStage::Finished {
             return Ok(());
         }
