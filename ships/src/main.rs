@@ -98,16 +98,26 @@ impl ProxyClient {
         Ok(GameResponse::from_ast(resp))
     }
 
-    pub fn start(&self, x0: i64) -> Result<GameResponse, Error> {
+    pub fn start(&self, role: Role) -> Result<GameResponse, Error> {
         let args = AstNode::make_list(&vec![
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
-            AstNode::make_list(&vec![
-                AstNode::make_number(254),
-                AstNode::make_number(4),
-                AstNode::make_number(4),
-                AstNode::make_number(4),
-            ]),
+            match role {
+                Role::Attacker =>
+                    AstNode::make_list(&vec![
+                        AstNode::make_number(232),
+                        AstNode::make_number(40),
+                        AstNode::make_number(4),
+                        AstNode::make_number(4),
+                    ]),
+                Role::Defender =>
+                    AstNode::make_list(&vec![
+                        AstNode::make_number(392),
+                        AstNode::make_number(0),
+                        AstNode::make_number(4),
+                        AstNode::make_number(4),
+                    ]),
+            }
         ]);
         let resp = self.send(args, "START")?;
         info!("START: resp={}", resp);
@@ -211,8 +221,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     info!("Role: {:?}", role);
     info!("GameResponse: {:?}", resp);
 
-    let x0 = if role == Role::Attacker { 0 } else { 1 };
-    let resp = client.start(x0)?;
+    let resp = client.start(role)?;
     if resp.stage == GameStage::Finished {
         return Ok(());
     }
@@ -249,14 +258,16 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             vec![]
         };
 
-        let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
-        if (next_opponent_pos - prev_pos).abs() < 20.0 {
-            let beam = Command::Shoot{
-                ship_id: ship_id,
-                target: next_opponent_pos,
-                x3: prev_x4.1,
-            };
-            commands.push(beam);
+        if role == Role::Attacker {
+            let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
+            if (next_opponent_pos - prev_pos).abs() < 20.0 {
+                let beam = Command::Shoot{
+                    ship_id: ship_id,
+                    target: next_opponent_pos,
+                    x3: prev_x4.1,
+                };
+                commands.push(beam);
+            }
         }
 
         let resp = client.commands(&commands)?;
