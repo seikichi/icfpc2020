@@ -21,9 +21,10 @@ impl ProxyClient {
         }
     }
 
-    fn send(self, encoded_args: &str, purpose: &str /* for logging */) -> Result<String, Error> {
-        let param = self.api_key.map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
-        let url = self.server_url + "/aliens/send" + &param;
+    fn send(&self, encoded_args: &str, purpose: &str /* for logging */) -> Result<String, Error> {
+        let param = self.api_key.as_ref()
+            .map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
+        let url = self.server_url.clone() + "/aliens/send" + &param;
 
         println!("Request({}): url={}, body={}", purpose, url, encoded_args);
 
@@ -40,7 +41,7 @@ impl ProxyClient {
         Ok(body)
     }
 
-    pub fn join(self) -> Result<(), Error> {
+    pub fn join(&self) -> Result<(), Error> {
         let args = AstNode::make_list(&vec![
             AstNode::make_number(2),
             AstNode::make_number(self.player_key),
@@ -49,6 +50,23 @@ impl ProxyClient {
         let encoded_args = modulate(args);
         let resp = self.send(&encoded_args, "JOIN")?;
         println!("JOIN: resp={}", resp);
+        Ok(())
+    }
+
+    pub fn start(&self) -> Result<(), Error> {
+        let args = AstNode::make_list(&vec![
+            AstNode::make_number(3),
+            AstNode::make_number(self.player_key),
+            AstNode::make_list(&vec![
+                AstNode::make_number(0),
+                AstNode::make_number(0),
+                AstNode::make_number(0),
+                AstNode::make_number(0),
+            ]),
+        ]);
+        let encoded_args = modulate(args);
+        let resp = self.send(&encoded_args, "START")?;
+        println!("START: resp={}", resp);
         Ok(())
     }
 }
@@ -72,6 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = ProxyClient::new(server_url, player_key, api_key);
 
     client.join()?;
+    client.start()?;
 
     Ok(())
 }
