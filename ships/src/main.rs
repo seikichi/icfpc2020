@@ -170,16 +170,21 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
     loop {
-        let mut v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
-        if role == Role::Defender {
-            v = Vector::new(-v.x, -v.y);
-        } 
-        info!("@@@@ [{:?}] v={}", role, v);
-        let mut command1 = Command::Accelerate{
-            ship_id: ship_id,
-            vector: v
+        let dist_to_planet = prev_pos.abs();
+
+        let commands = if dist_to_planet < 50.0 {
+            let v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
+            info!("@@@@ [{:?}] v={}", role, v);
+            let acc = Command::Accelerate{
+                ship_id: ship_id,
+                vector: v
+            };
+            vec![acc]
+        } else {
+            vec![]
         };
-        let resp = client.commands(&vec![command1])?;
+
+        let resp = client.commands(&commands)?;
         info!("[{:?}] GameResponse: {:?}", role, resp);
         let ship = resp.game_state.unwrap().find_ship_info(role).ship;
         info!("@@@@ [{:?}] pos={}, vel={}", role, ship.position, ship.velocity);
