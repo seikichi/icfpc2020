@@ -1,7 +1,6 @@
 use crate::galaxy_interpreter::{evaluate, load, usual, AstNode, Function};
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::thread;
 
 pub struct GalaxyEvaluator {
     ast_nodes: HashMap<i64, Rc<AstNode>>,
@@ -40,20 +39,6 @@ impl GalaxyEvaluator {
         let node = usual(node.clone(), &mut self.ast_nodes, &mut self.memo, 0);
         return node;
     }
-}
-
-fn main() {
-    let stack_size = 1024 * 1024 * 1024;
-    let handler = thread::Builder::new()
-        .name("transpiler".to_owned())
-        .stack_size(stack_size)
-        .spawn(move || {
-            let mut evaluator = GalaxyEvaluator::new();
-            let node = evaluator.evaluate(AstNode::make_nil(), AstNode::make_vector(0, 0));
-            println!("{}", node);
-        })
-        .unwrap();
-    handler.join().unwrap();
 }
 
 // #[test]

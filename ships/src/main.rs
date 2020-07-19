@@ -64,14 +64,13 @@ impl ProxyClient {
         args: Rc<AstNode>,
         purpose: &str /* for logging */
     ) -> Result<Rc<AstNode>, Error> {
-        let encoded_args = modulate(args);
-
         let param = self.api_key.as_ref()
             .map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
         let url = self.server_url.clone() + "/aliens/send" + &param;
 
-        info!("Request({}): url={}, body={}", purpose, url, encoded_args);
+        info!("Request({}): url={}, body={}", purpose, url, args);
 
+        let encoded_args = modulate(args);
         let client = reqwest::blocking::Client::new();
         let resp = client.post(&url).body(encoded_args.to_owned()).send()?;
 
@@ -102,7 +101,7 @@ impl ProxyClient {
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
             AstNode::make_list(&vec![
-                AstNode::make_number(510),
+                AstNode::make_number(1),
                 AstNode::make_number(1),
                 AstNode::make_number(1),
                 AstNode::make_number(1),

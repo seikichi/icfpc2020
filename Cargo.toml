@@ -9,6 +9,7 @@ members = [
     "core",
     "pad",
     "ships",
+    "interpreter",
 ]
 
 # [[bin]]
