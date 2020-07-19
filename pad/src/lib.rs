@@ -23,13 +23,16 @@ pub fn evaluate_galaxy() -> String {
 #[wasm_bindgen]
 pub struct GalaxyEvaluatorProxy {
     evaluator: GalaxyEvaluator,
-    current: Rc<AstNode>,
+    state: Rc<AstNode>,
 
     cells: Vec<Vec<u32>>,
+    flag: i64,
     ymin: i64,
     xmin: i64,
     ymax: i64,
     xmax: i64,
+    y: i64,
+    x: i64,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -48,27 +51,43 @@ impl GalaxyEvaluatorProxy {
         });
         Self {
             evaluator,
-            current,
+            state: AstNode::make_nil(),
             cells: vec![vec![]],
+            flag: 0,
             ymin: 0,
             xmin: 0,
             ymax: 0,
             xmax: 0,
+            y: 0,
+            x: 0,
         }
     }
 
-    pub fn interact(&mut self) {
+    pub fn interact(&mut self, y: u32, x: u32) {
+        let y = y as i64 + self.ymin;
+        let x = x as i64 + self.xmin;
+        self.y = y;
+        self.x = x;
+
         let node = self
             .evaluator
-            .evaluate(AstNode::make_nil(), AstNode::make_vector(0, 0));
-        self.current = node;
-        self.update_cells();
+            .evaluate(self.state.clone(), AstNode::make_vector(x as i64, y as i64));
+        self.flag = node.get_list_item(0).get_number();
+        self.state = node.get_list_item(1);
+        let data = node.get_list_item(2);
+
+        self.update_cells(data.clone());
     }
 
     pub fn debug(&self) -> String {
         //format!("{:#?}", self.current.get_list_item(2))
         // format!("{:?}", self.parse_data())
-        // format!("{:#?}", self.cells[6])
+        // format!("flag={:#?}, state={:#?}", self.flag, self.state)
+        format!(
+            "flag={}, y={:#?}, x={:#?}, ymin={}, xmin={}, ymax={}, xmax={}",
+            self.flag, self.y, self.x, self.ymin, self.xmin, self.ymax, self.xmax
+        )
+        // "NO DEBUG INFO".to_string()
     }
 
     pub fn width(&self) -> u32 {
@@ -83,8 +102,8 @@ impl GalaxyEvaluatorProxy {
         self.cells[y as usize][x as usize] as u32
     }
 
-    fn update_cells(&mut self) {
-        let points_lists = self.parse_data();
+    fn update_cells(&mut self, data: Rc<AstNode>) {
+        let points_lists = self.parse_data(data);
 
         let mut ymin = 1 << 60;
         let mut xmin = 1 << 60;
@@ -116,9 +135,7 @@ impl GalaxyEvaluatorProxy {
         }
     }
 
-    fn parse_data(&self) -> Vec<Vec<Point>> {
-        let data = self.current.get_list_item(2);
-
+    fn parse_data(&self, data: Rc<AstNode>) -> Vec<Vec<Point>> {
         let mut list = vec![];
         let mut cell = data;
 

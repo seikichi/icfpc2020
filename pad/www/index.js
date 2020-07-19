@@ -1,7 +1,7 @@
 import { GalaxyEvaluatorProxy } from "pad";
 
 const proxy = GalaxyEvaluatorProxy.new()
-proxy.interact();
+proxy.interact(0, 0);
 console.log(proxy.debug());
 
 const CELL_SIZE = 20; // px
@@ -9,8 +9,8 @@ const GRID_COLOR = "#CCCCCC";
 const DEAD_COLOR = "#FFFFFF";
 const ALIVE_COLOR = "#000000";
 
-const width = proxy.width();
-const height = proxy.height();
+let width = proxy.width();
+let height = proxy.height();
 
 const canvas = document.getElementById("galaxy-canvas");
 canvas.height = (CELL_SIZE + 1) * height + 1;
@@ -60,6 +60,34 @@ const drawCells = () => {
 
     ctx.stroke();
 };
+
+canvas.addEventListener("click", event => {
+    const boundingRect = canvas.getBoundingClientRect();
+
+    const scaleX = canvas.width / boundingRect.width;
+    const scaleY = canvas.height / boundingRect.height;
+
+    const canvasLeft = (event.clientX - boundingRect.left) * scaleX;
+    const canvasTop = (event.clientY - boundingRect.top) * scaleY;
+
+    const row = Math.min(Math.floor(canvasTop / (CELL_SIZE + 1)), height - 1);
+    const col = Math.min(Math.floor(canvasLeft / (CELL_SIZE + 1)), width - 1);
+
+    console.log(row, col);
+    proxy.interact(row, col);
+    console.log(proxy.debug());
+
+    width = proxy.width();
+    height = proxy.height();
+
+    console.log(`width = ${width}, height = ${height}`)
+    canvas.height = (CELL_SIZE + 1) * height + 1;
+    canvas.width = (CELL_SIZE + 1) * width + 1;
+
+
+    drawGrid();
+    drawCells();
+});
 
 console.log(`width = ${width}, height = ${height}`)
 drawGrid();
