@@ -26,9 +26,11 @@ impl ProxyClient {
         let resp = client.post(&url).body(encoded_args.to_owned()).send()?;
 
         if !resp.status().is_success() {
+            println!("RequestFailed: status={}, body={}", resp.status(), resp.text()?);
             let e = RequestFailedError {}; // TODO: レスポンスの情報を埋める
             return Err(From::from(e));
         }
+
         let body = resp.text()?;
         Ok(body)
     }
