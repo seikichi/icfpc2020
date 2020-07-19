@@ -1,7 +1,9 @@
 extern crate failure;
 extern crate reqwest;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
+use core::{demodulate, modulate, AstNode};
 use env_logger::Builder;
 use failure::Error;
 use failure::Fail;
@@ -9,7 +11,6 @@ use log::LevelFilter;
 use std::env;
 use std::rc::Rc;
 use std::thread;
-use core::{AstNode, modulate, demodulate};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum GameStage {
@@ -29,17 +30,52 @@ impl GameStage {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum Role {
+    Attacker,
+    Defender,
+}
+
+impl Role {
+    pub fn from_int(i: i64) -> Role {
+        match i {
+            0 => Role::Attacker,
+            1 => Role::Defender,
+            _ => panic!("Unknown role: {}", i),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct StaticGameInfo {
+    role: Role,
+}
+
+impl StaticGameInfo {
+    pub fn from_ast(ast: Rc<AstNode>) -> Self {
+        let role_code = ast.get_list_item(1).get_number();
+        let role = Role::from_int(role_code);
+        Self { role }
+    }
+}
+
 #[derive(Debug)]
 pub struct GameResponse {
     stage: GameStage,
+    static_game_info: StaticGameInfo,
 }
 
 impl GameResponse {
     pub fn from_ast(ast: Rc<AstNode>) -> Self {
         let stage_code = ast.get_list_item(1).get_number();
         let stage = GameStage::from_int(stage_code);
+
+        let static_game_info_ast = ast.get_list_item(2);
+        let static_game_info = StaticGameInfo::from_ast(static_game_info_ast);
+
         Self {
-            stage: stage,
+            stage,
+            static_game_info,
         }
     }
 }
@@ -48,7 +84,7 @@ fn send(
     api_key: Option<String>,
     server_url: &str,
     args: Rc<AstNode>,
-    purpose: &str /* for logging */
+    purpose: &str, /* for logging */
 ) -> Result<Rc<AstNode>, Error> {
     let param = api_key.map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
     let url = server_url.to_owned() + "/aliens/send" + &param;
@@ -61,7 +97,12 @@ fn send(
 
     let status = resp.status();
     if !status.is_success() {
-        error!("RequestFailed({}): status={}, body={}", purpose, status, resp.text()?);
+        error!(
+            "RequestFailed({}): status={}, body={}",
+            purpose,
+            status,
+            resp.text()?
+        );
         let e = RequestFailedError {};
         return Err(From::from(e));
     }
@@ -70,11 +111,17 @@ fn send(
     let decoded_body = demodulate(&body);
 
     if decoded_body.get_list_item(0).get_number() == 0 {
-        error!("ErrorResponse({}): status={}, body={}", purpose, status, decoded_body);
+        error!(
+            "ErrorResponse({}): status={}, body={}",
+            purpose, status, decoded_body
+        );
         let e = RequestFailedError {};
         return Err(From::from(e));
     }
-    info!("Response({}): status={}, body={}", purpose, status, decoded_body);
+    info!(
+        "Response({}): status={}, body={}",
+        purpose, status, decoded_body
+    );
     Ok(decoded_body)
 }
 
@@ -97,7 +144,7 @@ impl ProxyClient {
     fn send(
         &self,
         args: Rc<AstNode>,
-        purpose: &str /* for logging */
+        purpose: &str, /* for logging */
     ) -> Result<Rc<AstNode>, Error> {
         send(self.api_key.clone(), &self.server_url, args, purpose)
     }
@@ -152,6 +199,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     if resp.stage == GameStage::Finished {
         return Ok(());
     }
+    info!("Role: {:?}", resp.static_game_info.role);
 
     let resp = client.start()?;
     if resp.stage == GameStage::Finished {
@@ -161,7 +209,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     loop {
         let resp = client.commands()?;
         if resp.stage == GameStage::Finished {
-            return Ok(())
+            return Ok(());
         }
         if resp.stage == GameStage::NotStarted {
             panic!("Unexpected game stage NotStarted (after COMMANDS)");
@@ -170,15 +218,15 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 }
 
 fn create_players(api_key: Option<String>, server_url: &str) -> Result<(i64, i64), Error> {
-    let args = AstNode::make_list(&vec![
-        AstNode::make_number(1),
-        AstNode::make_number(0),
-    ]);
+    let args = AstNode::make_list(&vec![AstNode::make_number(1), AstNode::make_number(0)]);
     let resp = send(api_key, server_url, args, "CREATE")?;
     let pair = resp.get_list_item(1);
     let attacker_info = pair.get_list_item(0);
     let defender_info = pair.get_list_item(1);
-    let ids = (attacker_info.get_list_item(1).get_number(), defender_info.get_list_item(1).get_number());
+    let ids = (
+        attacker_info.get_list_item(1).get_number(),
+        defender_info.get_list_item(1).get_number(),
+    );
     Ok(ids)
 }
 
@@ -198,8 +246,16 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let default_server_url = "https://icfpc2020-api.testkontur.ru".to_owned();
     let api_key = "c793f2239e4f4b4bbb842c399878dec4".to_owned();
 
-    let server_url = if args.len() >= 2 { args[1].clone() } else { default_server_url };
-    let mode = if args.len() == 3 { Mode::Remote } else { Mode::Local };
+    let server_url = if args.len() >= 2 {
+        args[1].clone()
+    } else {
+        default_server_url
+    };
+    let mode = if args.len() == 3 {
+        Mode::Remote
+    } else {
+        Mode::Local
+    };
 
     info!("Mode: {:?}, ServerUrl: {}", mode, server_url);
 
