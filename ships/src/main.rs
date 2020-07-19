@@ -221,11 +221,15 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
+    let mut prev_x4 = (0, 0, 0, 0);
+    let mut prev_opponent_pos = Vector::new(0, 0);
+    let mut prev_opponent_vel = Vector::new(0, 0);
+
     loop {
         let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, 16);
         let out_of_bound_steps = simulate_orbit_out_of_safe_area(prev_pos, prev_vel, 5, 128);
 
-        let commands = if collide_steps <= 8 {
+        let mut commands = if collide_steps <= 8 {
             let v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
             info!("@@@@ [{:?}] v={}, planet_collide", role, v);
             let acc = Command::Accelerate{
@@ -245,9 +249,21 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             vec![]
         };
 
+        let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
+        if (next_opponent_pos - prev_pos).abs() < 20.0 {
+            let beam = Command::Shoot{
+                ship_id: ship_id,
+                target: next_opponent_pos,
+                x3: prev_x4.1,
+            };
+            commands.push(beam);
+        }
+
         let resp = client.commands(&commands)?;
         info!("[{:?}] GameResponse: {:?}", role, resp);
-        let ship = resp.game_state.unwrap().find_ship_info(role).ship;
+        let game_state = resp.game_state.unwrap();
+
+        let ship = game_state.find_ship_info(role).ship;
         info!("@@@@ [{:?}] pos={}, vel={}", role, ship.position, ship.velocity);
         if resp.stage == GameStage::Finished {
             return Ok(());
@@ -255,8 +271,14 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         if resp.stage == GameStage::NotStarted {
             panic!("[{:?}] Unexpected game stage NotStarted (after COMMANDS)", role);
         }
+
         prev_vel = ship.velocity;
         prev_pos = ship.position;
+        prev_x4 = ship.x4;
+
+        let opponent = game_state.find_ship_info(role.opponent()).ship;
+        prev_opponent_pos = opponent.position;
+        prev_opponent_vel = opponent.velocity;
     }
 }
 

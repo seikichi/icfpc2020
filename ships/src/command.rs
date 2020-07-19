@@ -5,7 +5,7 @@ use core::AstNode;
 pub enum Command {
     Accelerate { ship_id: i64, vector: Vector },
     Detonate { ship_id: i64 },
-    Shoot { ship_id: i64, target: Vector, /* x3 */ },
+    Shoot { ship_id: i64, target: Vector, x3: i64 },
 }
 
 impl Command {
@@ -24,12 +24,12 @@ impl Command {
                     AstNode::make_number(*ship_id),
                 ])
             }
-            Command::Shoot { ship_id, target, /* x3 */ } => {
+            Command::Shoot { ship_id, target, x3 } => {
                 AstNode::make_list(&vec![
                     AstNode::make_number(2),
                     AstNode::make_number(*ship_id),
                     AstNode::make_vector(target.x, target.y),
-                    AstNode::make_nil(), /* 仮。何が起こるか未検証 */
+                    AstNode::make_number(*x3),
                 ])
             }
         }

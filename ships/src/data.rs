@@ -34,6 +34,13 @@ impl Role {
             _ => panic!("Unknown role: {}", i),
         }
     }
+
+    pub fn opponent(&self) -> Role {
+        match self {
+            Role::Attacker => Role::Defender,
+            Role::Defender => Role::Attacker,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -107,7 +114,7 @@ pub struct Ship {
     pub ship_id: i64,
     pub position: Vector,
     pub velocity: Vector,
-    // x4,
+    pub x4: (i64, i64, i64, i64),
     // x5,
     // x6,
     // x7,
@@ -121,11 +128,19 @@ impl Ship {
         let ship_id = ast.get_list_item(1).get_number();
         let position = Vector::from_ast(ast.get_list_item(2));
         let velocity = Vector::from_ast(ast.get_list_item(3));
+
+        let x4_ast = ast.get_list_item(4);
+        let x4_0 = x4_ast.get_list_item(0).get_number();
+        let x4_1 = x4_ast.get_list_item(1).get_number();
+        let x4_2 = x4_ast.get_list_item(2).get_number();
+        let x4_3 = x4_ast.get_list_item(3).get_number();
+
         Self {
             role,
             ship_id,
             position,
             velocity,
+            x4: (x4_0, x4_1, x4_2, x4_3),
         }
     }
 }
