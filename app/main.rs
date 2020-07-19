@@ -1,13 +1,13 @@
-// extern crate failure;
+extern crate failure;
 extern crate reqwest;
 
 use http_body::Body as _;
 use hyper::{Body, Client, Method, Request, StatusCode};
 use std::env;
 use std::process;
-// use failure::Error;
+use failure::Error; 
+use failure::Fail;
 
-/*
 pub struct ProxyClient {
     server_url: String,
     player_key: String,
@@ -21,32 +21,26 @@ impl ProxyClient {
         }
     }
 
-    fn send(self) -> Result<(), Error> {
+    fn send(self) -> Result<String, Error> {
         let url = self.server_url + "/alians/send";
-        let req = Request::builder()
-            .method(Method::POST)
-            .uri(url)
-            .body(Body::from(format!("{}", self.player_key)))?;
 
-        let client = Client::new();
-        let res = client.request(req).await?;
+        let body = format!("{}", self.player_key);
+        let client = reqwest::blocking::Client::new();
+        let resp = client.post(&url).body(body).send()?;
 
-        match res.status() {
-            StatusCode::Ok => {
-                
-                while let Some(chunk) = res.body_mut().data().await {
-                    match chunk {
-                        Ok(content) => println!("{:?}", content),
-                        Err(why) => println!("error reading body: {:?}", why),
-                    }
-                }
-            }
+        if !resp.status().is_success() {
+            let e = RequestFailedError{}; // TODO: レスポンスの情報を埋める
+            return Err(From::from(e));
         }
-
-        Ok(())
+        let body = resp.text()?;
+        Ok(body)
     }
 }
-*/
+
+#[derive(Fail, Debug)]
+#[fail(display = "Request failed")]
+pub struct RequestFailedError {
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
