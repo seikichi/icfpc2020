@@ -107,6 +107,7 @@ pub struct AstNode {
     pub value: Function,
     pub children: Vec<Rc<AstNode>>,
 }
+
 impl fmt::Display for AstNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.value {
@@ -187,6 +188,14 @@ impl AstNode {
             value: Function::Cons,
             children: vec![l.clone(), r.clone()],
         })
+    }
+    #[allow(dead_code)]
+    pub fn make_list(elements: &[Rc<AstNode>]) -> Rc<AstNode> {
+        let mut head = Self::make_nil();
+        for elem in elements.iter().rev() {
+            head = Self::make_cons(elem.clone(), head);
+        }
+        head
     }
     #[allow(dead_code)]
     pub fn get_list_item(&self, index: usize) -> Rc<AstNode> {
@@ -665,6 +674,15 @@ fn interpreter() {
     // println!("{:#?}", node);
     // let node = evaluate(ast_nodes[&1109].clone(), &mut ast_nodes, &mut memo, 0);
     // println!("{:#?}", node);
+}
+
+#[test]
+fn test_make_list() {
+    let list_node = AstNode::make_list(&vec![
+        AstNode::make_number(1),
+        AstNode::make_number(2),
+    ]);
+    assert!(format!("{}", list_node) == "(1 (2 nil))");
 }
 
 #[test]
