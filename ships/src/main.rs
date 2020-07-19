@@ -6,6 +6,8 @@ use failure::Error;
 use failure::Fail;
 use std::rc::Rc;
 use std::env;
+use log::LevelFilter;
+use env_logger::Builder;
 use core::{AstNode, modulate, demodulate};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -128,7 +130,9 @@ impl ProxyClient {
 pub struct RequestFailedError {}
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    env_logger::init();
+    Builder::from_default_env()
+        .filter(None, LevelFilter::Info)
+        .init();
 
     let args: Vec<String> = env::args().collect();
 
