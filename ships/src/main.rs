@@ -259,16 +259,27 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             vec![]
         };
 
-        if role == Role::Attacker {
-            let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
-            if (next_opponent_pos - prev_pos).abs() < 20.0 {
-                let beam = Command::Shoot{
+        let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
+        let (next_pos, _) = simulate_next(prev_pos, prev_vel);
+        if (next_opponent_pos - next_pos).abs() < 20.0 {
+            // 敵と接近するとき
+            // 動く
+            if commands.is_empty() {
+                let v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
+                info!("@@@@ [{:?}] v={}, in_danger", role, v);
+                let acc = Command::Accelerate{
                     ship_id: ship_id,
-                    target: next_opponent_pos,
-                    x3: prev_x4.1,
+                    vector: v
                 };
-                commands.push(beam);
+                commands.push(acc);
             }
+            // 殴る
+            let beam = Command::Shoot{
+                ship_id: ship_id,
+                target: next_opponent_pos,
+                x3: prev_x4.1,
+            };
+            commands.push(beam);
         }
 
         let resp = client.commands(&commands)?;
