@@ -1,10 +1,13 @@
 extern crate failure;
 extern crate reqwest;
+#[macro_use] extern crate log;
 
 use failure::Error;
 use failure::Fail;
 use std::rc::Rc;
 use std::env;
+use log::LevelFilter;
+use env_logger::Builder;
 use core::{AstNode, modulate, demodulate};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -67,13 +70,13 @@ impl ProxyClient {
             .map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
         let url = self.server_url.clone() + "/aliens/send" + &param;
 
-        println!("Request({}): url={}, body={}", purpose, url, encoded_args);
+        info!("Request({}): url={}, body={}", purpose, url, encoded_args);
 
         let client = reqwest::blocking::Client::new();
         let resp = client.post(&url).body(encoded_args.to_owned()).send()?;
 
         if !resp.status().is_success() {
-            println!("RequestFailed: status={}, body={}", resp.status(), resp.text()?);
+            error!("RequestFailed: status={}, body={}", resp.status(), resp.text()?);
             let e = RequestFailedError {}; // TODO: レスポンスの情報を埋める
             return Err(From::from(e));
         }
@@ -83,31 +86,31 @@ impl ProxyClient {
         Ok(decoded_body)
     }
 
-    pub fn join(&self) -> Result<(), Error> {
+    pub fn join(&self) -> Result<GameResponse, Error> {
         let args = AstNode::make_list(&vec![
             AstNode::make_number(2),
             AstNode::make_number(self.player_key),
             AstNode::make_nil(),
         ]);
         let resp = self.send(args, "JOIN")?;
-        println!("JOIN: resp={}", resp);
-        Ok(())
+        info!("JOIN: resp={}", resp);
+        Ok(GameResponse::from_ast(resp))
     }
 
-    pub fn start(&self) -> Result<(), Error> {
+    pub fn start(&self) -> Result<GameResponse, Error> {
         let args = AstNode::make_list(&vec![
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
             AstNode::make_list(&vec![
-                AstNode::make_number(1),
+                AstNode::make_number(510),
                 AstNode::make_number(1),
                 AstNode::make_number(1),
                 AstNode::make_number(1),
             ]),
         ]);
         let resp = self.send(args, "START")?;
-        println!("START: resp={}", resp);
-        Ok(())
+        info!("START: resp={}", resp);
+        Ok(GameResponse::from_ast(resp))
     }
 
     pub fn commands(&self) -> Result<GameResponse, Error> {
@@ -117,7 +120,7 @@ impl ProxyClient {
             AstNode::make_nil(),
         ]);
         let resp = self.send(args, "COMMANDS")?;
-        println!("COMMANDS: resp={}", resp);
+        info!("COMMANDS: resp={}", resp);
         Ok(GameResponse::from_ast(resp))
     }
 }
@@ -127,6 +130,10 @@ impl ProxyClient {
 pub struct RequestFailedError {}
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    Builder::from_default_env()
+        .filter(None, LevelFilter::Info)
+        .init();
+
     let args: Vec<String> = env::args().collect();
 
     let default_server_url = "https://icfpc2020-api.testkontur.ru";
@@ -136,12 +143,16 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let server_url = if args.len() >= 2 { &args[1] } else { default_server_url };
     let player_key = if args.len() >= 3 { args[2].parse::<i64>()? } else { default_player_key };
 
-    println!("ServerUrl: {}; PlayerKey: {}", server_url, player_key);
+    info!("ServerUrl: {}; PlayerKey: {}", server_url, player_key);
 
     let client = ProxyClient::new(server_url, player_key, api_key);
 
     client.join()?;
-    client.start()?;
+
+    let resp = client.start()?;
+    if resp.stage == GameStage::Finished {
+        return Ok(())
+    }
 
     loop {
         let resp = client.commands()?;
