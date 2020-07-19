@@ -191,10 +191,10 @@ impl std::ops::Neg for Vector {
 
 macro_rules! vector_vector_ops {
     ( $trate:ident, $fname:ident, $op:tt) => {
-impl<'a> std::ops::$trate<&'a Vector> for Vector {
+impl<'a> std::ops::$trate<Vector> for Vector {
     type Output = Vector;
     #[inline]
-    fn $fname(self, rhs: &'a Vector) -> Vector {
+    fn $fname(self, rhs: Vector) -> Vector {
         let mut ret = self;
         ret.x = ret.x $op rhs.x;
         ret.y = ret.y $op rhs.y;
@@ -205,9 +205,9 @@ impl<'a> std::ops::$trate<&'a Vector> for Vector {
 }
 macro_rules! self_self_assign_ops {
     ( $type:ty, $trate:ident, $fname:ident, $op:tt) => {
-        impl<'a> std::ops::$trate<&'a $type> for $type {
+        impl<'a> std::ops::$trate<$type> for $type {
             #[inline]
-            fn $fname(&mut self, rhs: &'a $type) {
+            fn $fname(&mut self, rhs: $type) {
                 *self = self.clone() $op rhs;
             }
         }
