@@ -98,7 +98,7 @@ impl ProxyClient {
         Ok(GameResponse::from_ast(resp))
     }
 
-    pub fn start(&self) -> Result<GameResponse, Error> {
+    pub fn start(&self, x0: i64) -> Result<GameResponse, Error> {
         let args = AstNode::make_list(&vec![
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
@@ -140,29 +140,37 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     if resp.stage == GameStage::Finished {
         return Ok(());
     }
-    info!("Role: {:?}", resp.static_game_info.role);
+    let role = resp.static_game_info.role;
+    info!("Role: {:?}", role);
     info!("GameResponse: {:?}", resp);
 
-    let resp = client.start()?;
+    let x0 = if role == Role::Attacker { 0 } else { 1 };
+    let resp = client.start(x0)?;
     if resp.stage == GameStage::Finished {
         return Ok(());
     }
 
+    let mut prev_pos = Vector::new(0, 0);
+    let mut prev_vel = Vector::new(0, 0);
     loop {
         let command1 = Command::Accelerate{
             ship_id: 0,
-            vector: Vector::new(1, 0),
+            vector: Vector::new(prev_pos.y, -prev_pos.x)
         };
         let resp = client.commands(&vec![command1])?;
-        info!("GameResponse: {:?}", resp);
+        //info!("[{:?}] GameResponse: {:?}", role, resp);
         let ship = resp.game_state.unwrap().ships_and_commands[0].ship;
-        info!("pos={}, vel={}", ship.position, ship.velocity);
+        if role == Role::Defender {
+            info!("@@@@ [{:?}] pos={}, vel={}", role, ship.position, ship.velocity);
+        }
         if resp.stage == GameStage::Finished {
             return Ok(());
         }
         if resp.stage == GameStage::NotStarted {
-            panic!("Unexpected game stage NotStarted (after COMMANDS)");
+            panic!("[{:?}] Unexpected game stage NotStarted (after COMMANDS)", role);
         }
+        prev_vel = ship.velocity;
+        prev_pos = ship.position;
     }
 }
 
