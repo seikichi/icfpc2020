@@ -152,7 +152,7 @@ impl Vector {
         ret += self.y * rhs.y;
         return ret;
     }
-    pub fn norm(&self) -> Weight {
+    pub fn norm(&self) -> i64 {
         self.dot(self)
     }
     pub fn abs(&self) -> f64 {
