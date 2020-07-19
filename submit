@@ -1,4 +1,5 @@
 #!/bin/sh
+set -eu
 
 confirm_cleanness() {
 	status="$(git status -s)"
@@ -17,3 +18,5 @@ BRANCH_NAME="submissions/$(date +%Y%m%d%H%M%S)"
 git checkout -b "$BRANCH_NAME"
 git push origin HEAD
 git checkout master
+
+echo "Submission succeeded"
