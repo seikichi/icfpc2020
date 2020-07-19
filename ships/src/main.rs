@@ -7,6 +7,40 @@ use std::rc::Rc;
 use std::env;
 use core::{AstNode, modulate, demodulate};
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum GameStage {
+    NotStarted,
+    Started,
+    Finished,
+}
+
+impl GameStage {
+    pub fn from_int(i: i64) -> GameStage {
+        match i {
+            0 => GameStage::NotStarted,
+            1 => GameStage::Started,
+            2 => GameStage::Finished,
+            _ => panic!("Unknown stage: {}", i),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GameResponse {
+    stage: GameStage,
+}
+
+impl GameResponse {
+    pub fn from_ast(ast: Rc<AstNode>) -> Self {
+        let stage_code = ast.get_list_item(1).get_number();
+        let stage = GameStage::from_int(stage_code);
+        Self {
+            stage: stage,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ProxyClient {
     server_url: String,
     player_key: i64,
@@ -75,6 +109,17 @@ impl ProxyClient {
         println!("START: resp={}", resp);
         Ok(())
     }
+
+    pub fn commands(&self) -> Result<GameResponse, Error> {
+        let args = AstNode::make_list(&vec![
+            AstNode::make_number(4),
+            AstNode::make_number(self.player_key),
+            AstNode::make_nil(),
+        ]);
+        let resp = self.send(args, "COMMANDS")?;
+        println!("COMMANDS: resp={}", resp);
+        Ok(GameResponse::from_ast(resp))
+    }
 }
 
 #[derive(Fail, Debug)]
@@ -98,5 +143,13 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     client.join()?;
     client.start()?;
 
-    Ok(())
+    loop {
+        let resp = client.commands()?;
+        if resp.stage == GameStage::Finished {
+            return Ok(())
+        }
+        if resp.stage == GameStage::NotStarted {
+            panic!("Unexpected game stage NotStarted (after COMMANDS)");
+        }
+    }
 }
