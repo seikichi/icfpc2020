@@ -83,7 +83,7 @@ impl ProxyClient {
         Ok(decoded_body)
     }
 
-    pub fn join(&self) -> Result<(), Error> {
+    pub fn join(&self) -> Result<GameResponse, Error> {
         let args = AstNode::make_list(&vec![
             AstNode::make_number(2),
             AstNode::make_number(self.player_key),
@@ -91,23 +91,23 @@ impl ProxyClient {
         ]);
         let resp = self.send(args, "JOIN")?;
         println!("JOIN: resp={}", resp);
-        Ok(())
+        Ok(GameResponse::from_ast(resp))
     }
 
-    pub fn start(&self) -> Result<(), Error> {
+    pub fn start(&self) -> Result<GameResponse, Error> {
         let args = AstNode::make_list(&vec![
             AstNode::make_number(3),
             AstNode::make_number(self.player_key),
             AstNode::make_list(&vec![
-                AstNode::make_number(1),
-                AstNode::make_number(1),
-                AstNode::make_number(1),
+                AstNode::make_number(510),
+                AstNode::make_number(0),
+                AstNode::make_number(0),
                 AstNode::make_number(1),
             ]),
         ]);
         let resp = self.send(args, "START")?;
         println!("START: resp={}", resp);
-        Ok(())
+        Ok(GameResponse::from_ast(resp))
     }
 
     pub fn commands(&self) -> Result<GameResponse, Error> {
@@ -140,8 +140,15 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let client = ProxyClient::new(server_url, player_key, api_key);
 
-    client.join()?;
-    client.start()?;
+    let resp = client.join()?;
+    if resp.stage == GameStage::Finished {
+        return Ok(())
+    }
+
+    let resp = client.start()?;
+    if resp.stage == GameStage::Finished {
+        return Ok(())
+    }
 
     loop {
         let resp = client.commands()?;
