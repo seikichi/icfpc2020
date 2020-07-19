@@ -247,6 +247,59 @@ pub fn modulate(node: Rc<AstNode>) -> String {
     }
 }
 
+fn demodulate_number(s: &Vec<char>, index: usize) -> (i64, usize) {
+    let mut index = index;
+    let sign = if s[index..].starts_with(&vec!['0', '1']) {
+        1
+    } else if s[index..].starts_with(&vec!['1', '0']) {
+        -1
+    } else {
+        panic!("invalid encoding");
+    };
+    index += 2;
+    if s[index] == '0' {
+        index += 1;
+        return (0, index);
+    }
+    let mut n4_bits = 0;
+    while s[index] == '1' {
+        n4_bits += 1;
+        index += 1;
+    }
+    index += 1;
+    let mut v = 0;
+    let mut bit = 1 << (4 * n4_bits - 1);
+    for _i in 0..(4 * n4_bits) {
+        if s[index] == '1' {
+            v |= bit;
+        }
+        index += 1;
+        bit >>= 1;
+    }
+    return (sign * v, index);
+}
+
+fn demodulate_inner(s: &Vec<char>, index: usize) -> (Rc<AstNode>, usize) {
+    if s[index..].starts_with(&vec!['0', '0']) {
+        return (AstNode::make_nil(), index + 2);
+    } else if s[index..].starts_with(&vec!['1', '1']) {
+        let (left, nindex) = demodulate_inner(s, index + 2);
+        let (right, nindex) = demodulate_inner(s, nindex);
+        return (AstNode::make_cons(left, right), nindex);
+    } else {
+        let (ret, nindex) = demodulate_number(s, index);
+        return (AstNode::make_number(ret), nindex);
+    }
+}
+
+#[allow(dead_code)]
+pub fn demodulate(s: &str) -> Rc<AstNode> {
+    let s = s.chars().collect();
+    let (ret, index) = demodulate_inner(&s, 0);
+    assert!(index == s.len());
+    return ret;
+}
+
 fn need_children(function: Function) -> Vec<usize> {
     match function {
         Function::Neg => vec![0],
@@ -924,5 +977,31 @@ fn test_modulate() {
             AstNode::make_number(1),
             AstNode::make_cons(AstNode::make_number(2), AstNode::make_nil(),)
         )) == "1101100001110110001000"
+    );
+}
+
+#[test]
+fn test_demodulate() {
+    assert!(demodulate(&"010") == AstNode::make_number(0));
+    assert!(demodulate(&"01100001") == AstNode::make_number(1));
+    assert!(demodulate(&"01100010") == AstNode::make_number(2));
+    assert!(demodulate(&"10100001") == AstNode::make_number(-1));
+    assert!(demodulate(&"011110000100000000") == AstNode::make_number(256));
+
+    assert!(demodulate(&"00") == AstNode::make_nil());
+    assert!(demodulate(&"110000") == AstNode::make_cons(AstNode::make_nil(), AstNode::make_nil()));
+    assert!(
+        demodulate(&"1101000") == AstNode::make_cons(AstNode::make_number(0), AstNode::make_nil())
+    );
+    assert!(
+        demodulate(&"110110000101100010")
+            == AstNode::make_cons(AstNode::make_number(1), AstNode::make_number(2))
+    );
+    assert!(
+        demodulate(&"1101100001110110001000")
+            == AstNode::make_cons(
+                AstNode::make_number(1),
+                AstNode::make_cons(AstNode::make_number(2), AstNode::make_nil(),)
+            )
     );
 }
