@@ -100,8 +100,8 @@ impl ProxyClient {
             AstNode::make_number(self.player_key),
             AstNode::make_list(&vec![
                 AstNode::make_number(510),
-                AstNode::make_number(0),
-                AstNode::make_number(0),
+                AstNode::make_number(1),
+                AstNode::make_number(1),
                 AstNode::make_number(1),
             ]),
         ]);
@@ -140,10 +140,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let client = ProxyClient::new(server_url, player_key, api_key);
 
-    let resp = client.join()?;
-    if resp.stage == GameStage::Finished {
-        return Ok(())
-    }
+    client.join()?;
 
     let resp = client.start()?;
     if resp.stage == GameStage::Finished {
