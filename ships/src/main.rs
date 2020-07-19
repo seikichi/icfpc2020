@@ -20,7 +20,7 @@ impl ProxyClient {
     }
 
     fn send(self, encoded_args: &str, purpose: &str /* for logging */) -> Result<String, Error> {
-        let url = self.server_url + "/alians/send";
+        let url = self.server_url + "/aliens/send";
 
         println!("Request({}): url={}, body={}", purpose, url, encoded_args);
 
@@ -54,12 +54,14 @@ impl ProxyClient {
 #[fail(display = "Request failed")]
 pub struct RequestFailedError {}
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args: Vec<String> = env::args().collect();
 
-    let server_url = &args[1];
-    let player_key = args[2].parse::<i64>()?;
+    let default_server_url = "https://icfpc2020-api.testkontur.ru";
+    let default_player_key: i64 = 123456789;
+
+    let server_url = if args.len() >= 2 { &args[1] } else { default_server_url };
+    let player_key = if args.len() >= 3 { args[2].parse::<i64>()? } else { default_player_key };
 
     println!("ServerUrl: {}; PlayerKey: {}", server_url, player_key);
 
