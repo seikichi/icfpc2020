@@ -236,6 +236,9 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
     let mut prev_x4 = (0, 0, 0, 0);
+    let mut prev_x5 = 0;
+    let mut prev_x6 = 0;
+    let mut prev_x7 = 0;
     let mut prev_opponent_pos = Vector::new(0, 0);
     let mut prev_opponent_vel = Vector::new(0, 0);
 
@@ -247,9 +250,9 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             let v1 = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
             let v2 = normalize_dir(Vector::new(prev_pos.y, -prev_pos.x));
             let v = if cosine_sim(prev_vel, -v1) > cosine_sim(prev_vel, -v2) {
-                v2
-            } else {
                 v1
+            } else {
+                v2
             };
             info!("@@@@ [{:?}] v={}, planet_collide", role, v);
             let acc = Command::Accelerate{
@@ -284,12 +287,14 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 commands.push(acc);
             }
             // 殴る
-            let beam = Command::Shoot{
-                ship_id: ship_id,
-                target: next_opponent_pos,
-                x3: prev_x4.1,
-            };
-            commands.push(beam);
+            if prev_x5 + prev_x4.1 < prev_x6 {
+                let beam = Command::Shoot{
+                    ship_id: ship_id,
+                    target: next_opponent_pos,
+                    x3: prev_x4.1,
+                };
+                commands.push(beam);
+            }
         }
 
         let resp = client.commands(&commands)?;
@@ -308,6 +313,9 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         prev_vel = ship.velocity;
         prev_pos = ship.position;
         prev_x4 = ship.x4;
+        prev_x5 = ship.x5;
+        prev_x6 = ship.x6;
+        prev_x7 = ship.x7;
 
         let opponent = game_state.find_ship_info(role.opponent()).ship;
         prev_opponent_pos = opponent.position;

@@ -115,9 +115,9 @@ pub struct Ship {
     pub position: Vector,
     pub velocity: Vector,
     pub x4: (i64, i64, i64, i64),
-    // x5,
-    // x6,
-    // x7,
+    pub x5: i64,
+    pub x6: i64,
+    pub x7: i64,
 }
 
 impl Ship {
@@ -135,12 +135,19 @@ impl Ship {
         let x4_2 = x4_ast.get_list_item(2).get_number();
         let x4_3 = x4_ast.get_list_item(3).get_number();
 
+        let x5 = ast.get_list_item(5).get_number();
+        let x6 = ast.get_list_item(6).get_number();
+        let x7 = ast.get_list_item(7).get_number();
+
         Self {
             role,
             ship_id,
             position,
             velocity,
             x4: (x4_0, x4_1, x4_2, x4_3),
+            x5,
+            x6,
+            x7,
         }
     }
 }
@@ -215,7 +222,7 @@ impl std::ops::Neg for Vector {
         let mut ret = self;
         ret.x *= -1;
         ret.y *= -1;
-        return self;
+        return ret;
     }
 }
 
