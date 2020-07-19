@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = []
 edition = "2018"
 
+[lib]
+name = "app"
+path = "app/src/lib.rs"
+
 [[bin]]
 name = "app"
 path = "app/main.rs"
