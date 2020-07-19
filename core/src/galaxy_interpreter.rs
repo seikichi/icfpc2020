@@ -1,7 +1,9 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::convert::From;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::thread;
 
@@ -103,11 +105,17 @@ pub fn load() -> HashMap<i64, Statement> {
         .collect()
 }
 
-static mut AST_NODE_NUM: usize = 0;
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AstNode {
+    id: u64,
     pub value: Function,
     pub children: Vec<Rc<AstNode>>,
+}
+
+impl Hash for AstNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 impl fmt::Display for AstNode {
@@ -155,12 +163,15 @@ impl AstNode {
         }
     }
     pub fn new(value: Function, children: Vec<Rc<AstNode>>) -> Self {
-        // let id;
-        // unsafe {
-        //     id = AST_NODE_NUM;
-        //     AST_NODE_NUM += 1;
-        // }
-        AstNode { value, children }
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        children.hash(&mut hasher);
+        let id = hasher.finish();
+        AstNode {
+            id,
+            value,
+            children,
+        }
     }
     pub fn make_leaf(function: Function) -> Rc<Self> {
         Rc::new(AstNode::new(function, vec![]))
@@ -377,10 +388,8 @@ fn resolve_ast_node_with_memo(
         }
     }
     let ret = resolve_ast_node(node.clone(), ast_nodes, memo, depth, use_memo);
-    if use_memo {
-        // println!("memo: {}, node: {:#?}, ret: {:#?}", node, node, ret);
-        memo.insert(node.clone(), ret.clone());
-    }
+    // println!("memo: {}, node: {:#?}, ret: {:#?}", node, node, ret);
+    memo.insert(node.clone(), ret.clone());
     return ret;
 }
 
