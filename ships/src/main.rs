@@ -247,18 +247,9 @@ fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
 }
 
 fn is_good_attack_angle(relative_pos: Vector) -> bool {
-    let dx = [1, 1, 1, 0, -1, -1, -1, 0];
-    let dy = [-1, 0, 1, 1, 1, 0, -1, -1];
-    let mut max_cosine_sim = -1.0;
-    for i in 0..8 {
-        let d = Vector::new(dx[i], dy[i]);
-        let sim = cosine_sim(d, relative_pos);
-        if sim > max_cosine_sim {
-            max_cosine_sim = sim;
-        }
-    }
-    let threshold = (5.0 / 180.0 * PI).cos();
-    max_cosine_sim > threshold
+    relative_pos.x.abs() <= 1 ||
+    relative_pos.y.abs() <= 1 ||
+    (relative_pos.x.abs() - relative_pos.y.abs()).abs() <= 1
 }
 
 fn should_shoot_regardless_of_angle(opponent: &Ship) -> bool {
