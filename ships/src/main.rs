@@ -311,6 +311,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 
     let mut guess_hit = 0;
     let mut guess_miss = 0;
+    let mut use_guess = true;
 
     loop {
         let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, PLANET_RADIUS + 10);
@@ -359,7 +360,12 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             commands.push(acc);
         }
 
-        let (next_opponent_pos, _) = guess_opponent_next(prev_opponent_pos, prev_opponent_vel, &prev_opponent_commands);
+        let (next_opponent_pos, _) =
+            if use_guess {
+                guess_opponent_next(prev_opponent_pos, prev_opponent_vel, &prev_opponent_commands)
+            } else {
+                simulate_next(prev_opponent_pos, prev_opponent_vel)
+            };
         let (next_pos, _) = simulate_next(prev_pos, prev_vel);
         if role == Role::Attacker {
             // うまく移動して、次のターンで射線が通るならばそう移動する
@@ -477,6 +483,11 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             guess_miss += 1;
         }
         info!("@@@@ [{:?}] guess_hit={}, guess_miss={}, hit_rate={}", role, guess_hit, guess_miss, guess_hit as f64 / (guess_hit + guess_miss) as f64);
+        if use_guess && guess_hit + guess_miss >= 30 && (guess_hit as f64 / (guess_hit + guess_miss) as f64) < 0.3 {
+            use_guess = false;
+            info!("@@@@ [{:?}] guess rate is too low. use naive", role);
+        }
+
         tick += 1;
     }
 }
