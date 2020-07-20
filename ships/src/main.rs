@@ -171,7 +171,10 @@ fn sgn(x: i64) -> i64 {
 }
 
 fn simulate_next(mut pos: Vector, mut vel: Vector) -> (Vector, Vector) {
-    if pos.x.abs() > pos.y.abs() {
+    if pos.x.abs() == pos.y.abs() {
+        vel.x += -sgn(pos.x);
+        vel.y += -sgn(pos.y);
+    } else if pos.x.abs() > pos.y.abs() {
         vel.x += -sgn(pos.x);
     } else {
         vel.y += -sgn(pos.y);
