@@ -180,6 +180,9 @@ impl Vector {
     pub fn abs(&self) -> f64 {
         (self.norm() as f64).sqrt()
     }
+    pub fn cross(&self, rhs: Vector) -> i64 {
+        return self.x * rhs.y - self.y * rhs.x;
+    }
 }
 
 impl fmt::Display for Vector {
