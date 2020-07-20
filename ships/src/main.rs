@@ -299,7 +299,6 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_x4 = (0, 0, 0, 0);
     let mut prev_x5 = 0; // ヒート的な値
     let mut prev_x6 = 0; // オーバーヒートの上限
-    let mut prev_x7 = 0;
     let mut next_should_move = false;
     let mut prev_opponent_pos = Vector::new(0, 0);
     let mut prev_opponent_vel = Vector::new(0, 0);
@@ -325,6 +324,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         };
 
         let mut commands = if collide_steps <= 8 {
+            // 星にぶつかりそう。最優先で回避
             info!("@@@@ [{:?}] v={}, planet_collide", role, orbit_v);
             let acc = Command::Accelerate {
                 ship_id: ship_id,
@@ -332,6 +332,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             };
             vec![acc]
         } else if out_of_bound_steps <= 5 {
+            // 域外に出そう。最優先で回避
             let v = normalize_dir(Vector::new(prev_vel.x, prev_vel.y));
             info!("@@@@ [{:?}] v={}, out_of_bound", role, v);
             let acc = Command::Accelerate {
@@ -343,6 +344,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             vec![]
         };
 
+        // spawn した直後なので、軌道をずらすためにとりあえず動く
         if commands.is_empty() && next_should_move {
             next_should_move = false;
             info!("@@@@ [{:?}] v={}, after spawn", role, orbit_v);
@@ -354,23 +356,10 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         }
 
         let (next_opponent_pos, _) = guess_opponent_next(prev_opponent_pos, prev_opponent_vel, &prev_opponent_commands);
-        //let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
         let (next_pos, _) = simulate_next(prev_pos, prev_vel);
-        if (next_opponent_pos - next_pos).abs() < 20.0 {
-            // 敵と接近するとき
-            // 動く (50%)
-            if commands.is_empty() && rng.gen_range(0, 2) == 0 {
-                info!("@@@@ [{:?}] v={}, in_danger", role, orbit_v);
-                let acc = Command::Accelerate {
-                    ship_id: ship_id,
-                    vector: orbit_v,
-                };
-                commands.push(acc);
-            }
-        }
         if role == Role::Attacker {
             let relative_pos = next_opponent_pos - next_pos;
-            // 殴る
+            // 条件を満たしていれば殴る
             let room_for_attack = prev_x5 + prev_x4.1 <= prev_x6;
             if room_for_attack && (is_good_attack_angle(relative_pos) || should_shoot_regardless_of_angle(&prev_opponent)) {
                 info!("@@@@ [{:?}] shoot", role);
@@ -383,6 +372,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 commands.push(beam);
             }
         }
+
+        // Spawnできるとき
         if role == Role::Defender && commands.len() == 0 && prev_x4.3 > 1 {
             if simulate_in_orbit(
                 prev_pos,
@@ -391,6 +382,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 PLANET_RADIUS,
                 SAFE_AREA,
             ) {
+                // 今 spawn したらゲームエンドまで墜落とかしない場合
                 info!("@@@@ [{:?}] spawn", role);
                 let spawn = Command::Spawn {
                     ship_id: ship_id,
@@ -399,6 +391,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 commands.push(spawn);
                 next_should_move = true;
             } else {
+                // 今 spawn したら墜落などするので、よい移動ができる場合は移動する
                 let dx = [1, 1, 1, 0, -1, -1, -1, 0];
                 let dy = [-1, 0, 1, 1, 1, 0, -1, -1];
                 for i in 0..8 {
@@ -442,7 +435,6 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         prev_x4 = ship.x4;
         prev_x5 = ship.x5;
         prev_x6 = ship.x6;
-        prev_x7 = ship.x7;
         info!("[{:?}] {:?} {} {}", role, prev_x4, prev_x5, prev_x6);
 
         let opponent_info = game_state.find_ship_info(role.opponent());
