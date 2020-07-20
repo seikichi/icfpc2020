@@ -246,18 +246,21 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, 16);
         let out_of_bound_steps = simulate_orbit_out_of_safe_area(prev_pos, prev_vel, 5, 128);
 
-        let mut commands = if collide_steps <= 8 {
+        let orbit_v = {
             let v1 = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
             let v2 = normalize_dir(Vector::new(prev_pos.y, -prev_pos.x));
-            let v = if cosine_sim(prev_vel, -v1) > cosine_sim(prev_vel, -v2) {
+            if cosine_sim(prev_vel, -v1) > cosine_sim(prev_vel, -v2) {
                 v1
             } else {
                 v2
-            };
-            info!("@@@@ [{:?}] v={}, planet_collide", role, v);
+            }
+        };
+
+        let mut commands = if collide_steps <= 8 {
+            info!("@@@@ [{:?}] v={}, planet_collide", role, orbit_v);
             let acc = Command::Accelerate{
                 ship_id: ship_id,
-                vector: v
+                vector: orbit_v,
             };
             vec![acc]
         } else if out_of_bound_steps <= 5 {
@@ -278,11 +281,10 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             // 敵と接近するとき
             // 動く
             if commands.is_empty() {
-                let v = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
-                info!("@@@@ [{:?}] v={}, in_danger", role, v);
+                info!("@@@@ [{:?}] v={}, in_danger", role, orbit_v);
                 let acc = Command::Accelerate{
                     ship_id: ship_id,
-                    vector: v
+                    vector: orbit_v,
                 };
                 commands.push(acc);
             }
