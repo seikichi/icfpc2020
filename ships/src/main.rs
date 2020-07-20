@@ -14,7 +14,6 @@ use rand::Rng;
 use std::env;
 use std::rc::Rc;
 use std::thread;
-use std::f64::consts::PI;
 
 use crate::command::*;
 use crate::data::*;
@@ -258,6 +257,7 @@ fn should_shoot_regardless_of_angle(opponent: &Ship) -> bool {
 
 const PLANET_RADIUS: i64 = 16;
 const SAFE_AREA: i64 = 128;
+const MAX_TURN: isize = 384;
 fn play(client: ProxyClient) -> Result<(), Error> {
     let mut rng = rand::thread_rng();
 
@@ -365,7 +365,13 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             }
         }
         if role == Role::Defender && commands.len() == 0 && prev_x4.3 > 1 {
-            if simulate_in_orbit(prev_pos, prev_vel, 256 - tick, PLANET_RADIUS, SAFE_AREA) {
+            if simulate_in_orbit(
+                prev_pos,
+                prev_vel,
+                MAX_TURN - tick,
+                PLANET_RADIUS,
+                SAFE_AREA,
+            ) {
                 info!("@@@@ [{:?}] spawn", role);
                 let spawn = Command::Spawn {
                     ship_id: ship_id,
@@ -378,7 +384,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 let dy = [-1, 0, 1, 1, 1, 0, -1, -1];
                 for i in 0..8 {
                     let tvel = Vector::new(prev_vel.x + dx[i], prev_vel.y + dy[i]);
-                    if simulate_in_orbit(prev_pos, tvel, 256 - tick, PLANET_RADIUS, SAFE_AREA) {
+                    if simulate_in_orbit(prev_pos, tvel, MAX_TURN - tick, PLANET_RADIUS, SAFE_AREA)
+                    {
                         let dir = Vector::new(-dx[i], -dy[i]);
                         info!("@@@@ [{:?}] ac for spawn {:?}", role, dir);
                         let ac = Command::Accelerate {
