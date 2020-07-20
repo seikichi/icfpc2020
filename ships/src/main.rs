@@ -212,9 +212,9 @@ fn simulate_orbit_out_of_safe_area(mut pos: Vector, mut vel: Vector, n: isize, s
     return n+1;
 }
 
-fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
-    return (v1.dot(&v2) as f64) / (v1.abs() * v2.abs());
-}
+//fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
+//    return (v1.dot(&v2) as f64) / (v1.abs() * v2.abs());
+//}
 
 fn play(client: ProxyClient) -> Result<(), Error> {
     let mut rng = rand::thread_rng();
@@ -252,7 +252,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         let orbit_v = {
             let v1 = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
             let v2 = normalize_dir(Vector::new(prev_pos.y, -prev_pos.x));
-            if cosine_sim(prev_vel, -v1) > cosine_sim(prev_vel, -v2) {
+            let n = prev_pos.cross(prev_vel);
+            if sgn(prev_pos.cross(-v1)) == sgn(n) {
                 v1
             } else {
                 v2
