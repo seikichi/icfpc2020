@@ -269,6 +269,10 @@ fn should_shoot_regardless_of_angle(opponent: &Ship) -> bool {
     opponent.x4.2 == 0 || (opponent.x6 - opponent.x5) <= 10
 }
 
+fn room_for_attack(x4: (i64, i64, i64, i64), x5: i64, x6: i64, n_acc: i64) -> bool {
+    x5 + x4.1 + n_acc * 4 <= x6
+}
+
 const PLANET_RADIUS: i64 = 16;
 const SAFE_AREA: i64 = 128;
 const MAX_TURN: isize = 384;
@@ -358,12 +362,34 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         let (next_opponent_pos, _) = guess_opponent_next(prev_opponent_pos, prev_opponent_vel, &prev_opponent_commands);
         let (next_pos, _) = simulate_next(prev_pos, prev_vel);
         if role == Role::Attacker {
+            // うまく移動して、次のターンで射線が通るならばそう移動する
+            let mut must_shoot = false;
+            if commands.len() == 0 && room_for_attack(prev_x4, prev_x5, prev_x6, 1) {
+                let dx = [1, 1, 1, 0, -1, -1, -1, 0];
+                let dy = [-1, 0, 1, 1, 1, 0, -1, -1];
+                for i in 0..8 {
+                    let v = Vector::new(dx[i], dy[i]);
+                    let (next_modified_pos, _) = simulate_next(prev_pos, prev_vel + v);
+                    let next_relative_pos = next_opponent_pos - next_modified_pos;
+                    if is_good_attack_angle(next_relative_pos) {
+                        info!("@@@@ [{:?}] move for shoot: v={}", role, -v);
+                        let ac = Command::Accelerate{
+                            ship_id: ship_id,
+                            vector: -v,
+                        };
+                        commands.push(ac);
+                        must_shoot = true;
+                        break;
+                    }
+                }
+            }
+
             let relative_pos = next_opponent_pos - next_pos;
             // 条件を満たしていれば殴る
-            let room_for_attack = prev_x5 + prev_x4.1 <= prev_x6;
-            if room_for_attack && (is_good_attack_angle(relative_pos) || should_shoot_regardless_of_angle(&prev_opponent)) {
+            if room_for_attack(prev_x4, prev_x5, prev_x6, commands.len() as i64) &&
+                (must_shoot || is_good_attack_angle(relative_pos) || should_shoot_regardless_of_angle(&prev_opponent))
+            {
                 info!("@@@@ [{:?}] shoot", role);
-                // 温度が大丈夫そうなら
                 let beam = Command::Shoot {
                     ship_id: ship_id,
                     target: next_opponent_pos,
@@ -435,7 +461,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         prev_x4 = ship.x4;
         prev_x5 = ship.x5;
         prev_x6 = ship.x6;
-        info!("[{:?}] {:?} {} {}", role, prev_x4, prev_x5, prev_x6);
+        info!("@@@@ [{:?}] {:?} {} {}", role, prev_x4, prev_x5, prev_x6);
 
         let opponent_info = game_state.find_ship_info(role.opponent());
         let opponent = opponent_info.ship;
@@ -444,7 +470,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         prev_opponent = opponent;
         prev_opponent_commands = opponent_info.applied_commands;
 
-        info!("@@@@ guess={}, actual={}, hit={}", next_opponent_pos, opponent.position, next_opponent_pos == opponent.position);
+        info!("@@@@ [{:?}] guess={}, actual={}, hit={}", role, next_opponent_pos, opponent.position, next_opponent_pos == opponent.position);
         if next_opponent_pos == opponent.position {
             guess_hit += 1;
         } else {
