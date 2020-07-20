@@ -14,6 +14,7 @@ use rand::Rng;
 use std::env;
 use std::rc::Rc;
 use std::thread;
+use std::f64::consts::PI;
 
 use crate::command::*;
 use crate::data::*;
@@ -245,6 +246,21 @@ fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
     return (v1.dot(&v2) as f64) / (v1.abs() * v2.abs());
 }
 
+fn is_good_attack_angle(relative_pos: Vector) -> bool {
+    let dx = [1, 1, 1, 0, -1, -1, -1, 0];
+    let dy = [-1, 0, 1, 1, 1, 0, -1, -1];
+    let mut max_cosine_sim = -1.0;
+    for i in 0..8 {
+        let d = Vector::new(dx[i], dy[i]);
+        let sim = cosine_sim(d, relative_pos);
+        if sim > max_cosine_sim {
+            max_cosine_sim = sim;
+        }
+    }
+    let threshold = (5.0 / 180.0 * PI).cos();
+    max_cosine_sim > threshold
+}
+
 const PLANET_RADIUS: i64 = 16;
 const SAFE_AREA: i64 = 128;
 fn play(client: ProxyClient) -> Result<(), Error> {
@@ -336,10 +352,10 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 commands.push(acc);
             }
         }
-        let attack_dist = if role == Role::Attacker { 400.0 } else { 0.0 };
-        if role == Role::Attacker && (next_opponent_pos - next_pos).abs() < attack_dist {
+        if role == Role::Attacker {
+            let relative_pos = next_opponent_pos - next_pos;
             // 殴る
-            if prev_x5 + prev_x4.1 <= prev_x6 {
+            if prev_x5 + prev_x4.1 <= prev_x6 && is_good_attack_angle(relative_pos) {
                 info!("@@@@ [{:?}] shoot", role);
                 // 温度が大丈夫そうなら
                 let beam = Command::Shoot {
