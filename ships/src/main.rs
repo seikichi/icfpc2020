@@ -205,7 +205,7 @@ fn simulate_orbit_out_of_safe_area(mut pos: Vector, mut vel: Vector, n: isize, s
         let (next_pos, next_vel) = simulate_next(pos, vel);
         pos = next_pos;
         vel = next_vel;
-        if pos.x.abs() > safe_radius && pos.y.abs() > safe_radius {
+        if pos.x.abs() > safe_radius || pos.y.abs() > safe_radius {
             return i+1;
         }
     }
