@@ -13,6 +13,7 @@ use log::LevelFilter;
 use std::env;
 use std::rc::Rc;
 use std::thread;
+use rand::Rng;
 
 use core::{demodulate, modulate, AstNode};
 use crate::data::*;
@@ -216,6 +217,8 @@ fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
 }
 
 fn play(client: ProxyClient) -> Result<(), Error> {
+    let mut rng = rand::thread_rng();
+
     info!("Player: {}", client.player_key);
 
     let resp = client.join()?;
@@ -279,8 +282,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         let (next_pos, _) = simulate_next(prev_pos, prev_vel);
         if (next_opponent_pos - next_pos).abs() < 20.0 {
             // 敵と接近するとき
-            // 動く
-            if commands.is_empty() {
+            // 動く (50%)
+            if commands.is_empty() && rng.gen_range(0, 2) == 0 {
                 info!("@@@@ [{:?}] v={}, in_danger", role, orbit_v);
                 let acc = Command::Accelerate{
                     ship_id: ship_id,
