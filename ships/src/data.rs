@@ -1,6 +1,6 @@
-use std::rc::Rc;
-use std::fmt;
 use core::AstNode;
+use std::fmt;
+use std::rc::Rc;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum GameStage {
@@ -86,12 +86,18 @@ impl GameState {
     }
 
     pub fn find_ship_info(&self, role: Role) -> ShipAndAppliedCommands {
+        let mut min_ship_id = 0;
+        let mut ret = None;
         for ship_and_commands in self.ships_and_commands.iter() {
             if ship_and_commands.ship.role == role {
-                return ship_and_commands.clone();
+                if ret.is_none() || ship_and_commands.ship.ship_id < min_ship_id {
+                    min_ship_id = ship_and_commands.ship.ship_id;
+                    ret = Some(ship_and_commands.clone());
+                }
             }
         }
-        panic!("the role not found: {:?}", role)
+        return ret.unwrap();
+        // panic!("the role not found: {:?}", role)
     }
 }
 

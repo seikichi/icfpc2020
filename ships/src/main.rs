@@ -1,5 +1,5 @@
-mod data;
 mod command;
+mod data;
 
 extern crate failure;
 extern crate reqwest;
@@ -10,14 +10,14 @@ use env_logger::Builder;
 use failure::Error;
 use failure::Fail;
 use log::LevelFilter;
+use rand::Rng;
 use std::env;
 use std::rc::Rc;
 use std::thread;
-use rand::Rng;
 
-use core::{demodulate, modulate, AstNode};
-use crate::data::*;
 use crate::command::*;
+use crate::data::*;
+use core::{demodulate, modulate, AstNode};
 
 fn send(
     api_key: Option<String>,
@@ -115,9 +115,9 @@ impl ProxyClient {
                 ]),
                 Role::Defender => AstNode::make_list(&vec![
                     AstNode::make_number(232),
-                    AstNode::make_number(40),
-                    AstNode::make_number(4),
-                    AstNode::make_number(4),
+                    AstNode::make_number(0),
+                    AstNode::make_number(8),
+                    AstNode::make_number(20),
                 ]),
             },
         ]);
@@ -181,7 +181,12 @@ fn simulate_next(mut pos: Vector, mut vel: Vector) -> (Vector, Vector) {
 }
 
 // 星にぶつかるまでの時間をかえす
-fn simulate_orbit_to_planet(mut pos: Vector, mut vel: Vector, n: isize, planet_radius: i64) -> isize {
+fn simulate_orbit_to_planet(
+    mut pos: Vector,
+    mut vel: Vector,
+    n: isize,
+    planet_radius: i64,
+) -> isize {
     if pos.x.abs() <= planet_radius && pos.y.abs() <= planet_radius {
         return 0;
     }
@@ -190,14 +195,19 @@ fn simulate_orbit_to_planet(mut pos: Vector, mut vel: Vector, n: isize, planet_r
         pos = next_pos;
         vel = next_vel;
         if pos.x.abs() <= planet_radius && pos.y.abs() <= planet_radius {
-            return i+1;
+            return i + 1;
         }
     }
-    return n+1;
+    return n + 1;
 }
 
 // 安全なエリアから出るまでの時間をかえす
-fn simulate_orbit_out_of_safe_area(mut pos: Vector, mut vel: Vector, n: isize, safe_radius: i64) -> isize {
+fn simulate_orbit_out_of_safe_area(
+    mut pos: Vector,
+    mut vel: Vector,
+    n: isize,
+    safe_radius: i64,
+) -> isize {
     if pos.x.abs() > safe_radius && pos.y.abs() > safe_radius {
         return 0;
     }
@@ -206,16 +216,34 @@ fn simulate_orbit_out_of_safe_area(mut pos: Vector, mut vel: Vector, n: isize, s
         pos = next_pos;
         vel = next_vel;
         if pos.x.abs() > safe_radius || pos.y.abs() > safe_radius {
-            return i+1;
+            return i + 1;
         }
     }
-    return n+1;
+    return n + 1;
+}
+
+fn simulate_in_orbit(
+    pos: Vector,
+    vel: Vector,
+    n: isize,
+    planet_radius: i64,
+    safe_radius: i64,
+) -> bool {
+    if simulate_orbit_to_planet(pos, vel, n, planet_radius) <= n {
+        return false;
+    }
+    if simulate_orbit_out_of_safe_area(pos, vel, n, safe_radius) <= n {
+        return false;
+    }
+    return true;
 }
 
 fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
     return (v1.dot(&v2) as f64) / (v1.abs() * v2.abs());
 }
 
+const PLANET_RADIUS: i64 = 16;
+const SAFE_AREA: i64 = 128;
 fn play(client: ProxyClient) -> Result<(), Error> {
     let mut rng = rand::thread_rng();
 
@@ -236,6 +264,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 
     let ship_id = resp.game_state.unwrap().find_ship_info(role).ship.ship_id;
 
+    let mut tick = 0;
     let mut prev_pos = Vector::new(0, 0);
     let mut prev_vel = Vector::new(0, 0);
     let mut prev_x4 = (0, 0, 0, 0);
@@ -246,8 +275,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_opponent_vel = Vector::new(0, 0);
 
     loop {
-        let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, 26);
-        let out_of_bound_steps = simulate_orbit_out_of_safe_area(prev_pos, prev_vel, 5, 128);
+        let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, PLANET_RADIUS + 10);
+        let out_of_bound_steps = simulate_orbit_out_of_safe_area(prev_pos, prev_vel, 5, SAFE_AREA);
 
         let orbit_v = {
             let v1 = normalize_dir(Vector::new(-prev_pos.y, prev_pos.x));
@@ -262,7 +291,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 
         let mut commands = if collide_steps <= 8 {
             info!("@@@@ [{:?}] v={}, planet_collide", role, orbit_v);
-            let acc = Command::Accelerate{
+            let acc = Command::Accelerate {
                 ship_id: ship_id,
                 vector: orbit_v,
             };
@@ -270,9 +299,9 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         } else if out_of_bound_steps <= 5 {
             let v = normalize_dir(Vector::new(prev_vel.x, prev_vel.y));
             info!("@@@@ [{:?}] v={}, out_of_bound", role, v);
-            let acc = Command::Accelerate{
+            let acc = Command::Accelerate {
                 ship_id: ship_id,
-                vector: v
+                vector: v,
             };
             vec![acc]
         } else {
@@ -293,8 +322,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 commands.push(acc);
             }
         }
-        let attack_dist = if role == Role::Attacker { 400.0 } else { 10.0 };
-        if (next_opponent_pos - next_pos).abs() < attack_dist {
+        let attack_dist = if role == Role::Attacker { 400.0 } else { 0.0 };
+        if role == Role::Attacker && (next_opponent_pos - next_pos).abs() < attack_dist {
             // 殴る
             if prev_x5 + prev_x4.1 <= prev_x6 {
                 info!("@@@@ [{:?}] shoot", role);
@@ -306,6 +335,18 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 };
                 commands.push(beam);
             }
+        }
+        if role == Role::Defender
+            && commands.len() == 0
+            && prev_x4.3 > 1
+            && simulate_in_orbit(prev_pos, prev_vel, 256 - tick, PLANET_RADIUS, SAFE_AREA)
+        {
+            info!("@@@@ [{:?}] spawn", role);
+            let spawn = Command::Spawn {
+                ship_id: ship_id,
+                parameter: (0, 0, 0, 1),
+            };
+            commands.push(spawn);
         }
 
         let resp = client.commands(&commands)?;
@@ -338,6 +379,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         let opponent = game_state.find_ship_info(role.opponent()).ship;
         prev_opponent_pos = opponent.position;
         prev_opponent_vel = opponent.velocity;
+        tick += 1;
     }
 }
 
