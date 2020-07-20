@@ -107,10 +107,10 @@ impl ProxyClient {
                 // max 388, 1, 4, 4
                 // max 232, 40, 4, 4
                 Role::Attacker => AstNode::make_list(&vec![
-                    AstNode::make_number(48),
+                    AstNode::make_number(60),
                     AstNode::make_number(58),
                     AstNode::make_number(16),
-                    AstNode::make_number(20),
+                    AstNode::make_number(14),
                 ]),
                 Role::Defender => AstNode::make_list(&vec![
                     AstNode::make_number(232),
@@ -541,6 +541,13 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             use_guess = false;
             info!("@@@@ [{:?}] guess rate is too low. use naive", role);
         }
+        info!(
+            "@@@@ [{:?}] player_ship_cnt={}, opponent_ship_cnt={}",
+            role,
+            prev_player_ships.len(),
+            prev_player_ships.len()
+        );
+        info!("@@@@ [{:?}] tick={}", role, tick);
 
         tick += 1;
     }
