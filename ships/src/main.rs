@@ -14,6 +14,7 @@ use rand::Rng;
 use std::env;
 use std::rc::Rc;
 use std::thread;
+use std::f64::consts::PI;
 
 use crate::command::*;
 use crate::data::*;
@@ -245,6 +246,16 @@ fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
     return (v1.dot(&v2) as f64) / (v1.abs() * v2.abs());
 }
 
+fn is_good_attack_angle(relative_pos: Vector) -> bool {
+    relative_pos.x.abs() <= 1 ||
+    relative_pos.y.abs() <= 1 ||
+    (relative_pos.x.abs() - relative_pos.y.abs()).abs() <= 1
+}
+
+fn should_shoot_regardless_of_angle(opponent: &Ship) -> bool {
+    opponent.x4.2 == 0 || (opponent.x6 - opponent.x5) <= 10
+}
+
 const PLANET_RADIUS: i64 = 16;
 const SAFE_AREA: i64 = 128;
 fn play(client: ProxyClient) -> Result<(), Error> {
@@ -265,7 +276,8 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         return Ok(());
     }
 
-    let ship_id = resp.game_state.unwrap().find_ship_info(role).ship.ship_id;
+    let game_state = resp.game_state.unwrap();
+    let ship_id = game_state.find_ship_info(role).ship.ship_id;
 
     let mut tick = 0;
     let mut prev_pos = Vector::new(0, 0);
@@ -277,6 +289,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut next_should_move = false;
     let mut prev_opponent_pos = Vector::new(0, 0);
     let mut prev_opponent_vel = Vector::new(0, 0);
+    let mut prev_opponent = game_state.find_ship_info(role.opponent()).ship;
 
     loop {
         let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, PLANET_RADIUS + 10);
@@ -336,10 +349,11 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 commands.push(acc);
             }
         }
-        let attack_dist = if role == Role::Attacker { 400.0 } else { 0.0 };
-        if role == Role::Attacker && (next_opponent_pos - next_pos).abs() < attack_dist {
+        if role == Role::Attacker {
+            let relative_pos = next_opponent_pos - next_pos;
             // 殴る
-            if prev_x5 + prev_x4.1 <= prev_x6 {
+            let room_for_attack = prev_x5 + prev_x4.1 <= prev_x6;
+            if room_for_attack && (is_good_attack_angle(relative_pos) || should_shoot_regardless_of_angle(&prev_opponent)) {
                 info!("@@@@ [{:?}] shoot", role);
                 // 温度が大丈夫そうなら
                 let beam = Command::Shoot {
@@ -408,6 +422,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         let opponent = game_state.find_ship_info(role.opponent()).ship;
         prev_opponent_pos = opponent.position;
         prev_opponent_vel = opponent.velocity;
+        prev_opponent = opponent;
         tick += 1;
     }
 }
