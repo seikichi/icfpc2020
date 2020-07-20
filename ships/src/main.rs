@@ -276,7 +276,7 @@ fn room_for_attack(x4: (i64, i64, i64, i64), x5: i64, x6: i64, n_acc: i64) -> bo
 const PLANET_RADIUS: i64 = 16;
 const SAFE_AREA: i64 = 128;
 const MAX_TURN: isize = 384;
-const EXPLOSION_RADIUS: i64 = 6;
+const EXPLOSION_RADIUS: i64 = 3;
 fn play(client: ProxyClient) -> Result<(), Error> {
     let mut rng = rand::thread_rng();
 
@@ -429,8 +429,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                     let (opponent_next_pos, _) =
                         simulate_next(opponent_ship.ship.position, opponent_ship.ship.velocity);
                     let vect = opponent_next_pos - child_next_pos;
-                    if vect.x.abs() <= EXPLOSION_RADIUS - 1 && vect.y.abs() <= EXPLOSION_RADIUS - 1
-                    {
+                    if vect.x.abs() <= EXPLOSION_RADIUS && vect.y.abs() <= EXPLOSION_RADIUS {
                         info!("@@@@ [{:?}] detonate, pos={:?}", role, child_next_pos);
                         let expload = Command::Detonate {
                             ship_id: child_ship.ship.ship_id,
