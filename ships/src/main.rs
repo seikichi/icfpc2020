@@ -117,7 +117,7 @@ impl ProxyClient {
                     AstNode::make_number(232),
                     AstNode::make_number(0),
                     AstNode::make_number(8),
-                    AstNode::make_number(20),
+                    AstNode::make_number(60),
                 ]),
             },
         ]);
