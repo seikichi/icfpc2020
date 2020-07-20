@@ -99,18 +99,25 @@ impl GameState {
         return ret.unwrap();
         // panic!("the role not found: {:?}", role)
     }
+    pub fn get_all_role_ships(&self, role: Role) -> Vec<ShipAndAppliedCommands> {
+        self.ships_and_commands
+            .iter()
+            .cloned()
+            .filter(|s| s.ship.role == role)
+            .collect()
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum AppliedCommand {
-    Accelerate{ vector: Vector },
+    Accelerate { vector: Vector },
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ShipAndAppliedCommands {
     pub ship: Ship,
     // ship_id は -1 で固定。Accelerate しか取ってない
-    pub applied_commands: Vec<AppliedCommand>, 
+    pub applied_commands: Vec<AppliedCommand>,
 }
 
 impl ShipAndAppliedCommands {
@@ -118,14 +125,17 @@ impl ShipAndAppliedCommands {
         let ship = Ship::from_ast(ast.get_list_item(0));
         let commands_ast = ast.get_list_item(1);
         let mut commands = vec![];
-        commands_ast.for_each(|command_ast|
+        commands_ast.for_each(|command_ast| {
             if command_ast.get_list_item(0).get_number() == 0 {
-                commands.push(AppliedCommand::Accelerate{
+                commands.push(AppliedCommand::Accelerate {
                     vector: Vector::from_ast(command_ast.get_list_item(1)),
                 });
             }
-        );
-        Self { ship, applied_commands: commands }
+        });
+        Self {
+            ship,
+            applied_commands: commands,
+        }
     }
 }
 

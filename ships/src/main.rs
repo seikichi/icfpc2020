@@ -107,10 +107,10 @@ impl ProxyClient {
                 // max 388, 1, 4, 4
                 // max 232, 40, 4, 4
                 Role::Attacker => AstNode::make_list(&vec![
-                    AstNode::make_number(86),
+                    AstNode::make_number(48),
                     AstNode::make_number(58),
                     AstNode::make_number(16),
-                    AstNode::make_number(1),
+                    AstNode::make_number(20),
                 ]),
                 Role::Defender => AstNode::make_list(&vec![
                     AstNode::make_number(232),
@@ -185,11 +185,11 @@ fn simulate_next(mut pos: Vector, mut vel: Vector) -> (Vector, Vector) {
 fn guess_opponent_next(
     pos: Vector,
     mut vel: Vector,
-    prev_commands: &Vec<AppliedCommand>
+    prev_commands: &Vec<AppliedCommand>,
 ) -> (Vector, Vector) {
     for c in prev_commands.iter() {
         match c {
-            AppliedCommand::Accelerate{ vector } => {
+            AppliedCommand::Accelerate { vector } => {
                 vel -= *vector;
             }
         }
@@ -260,9 +260,9 @@ fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
 }
 
 fn is_good_attack_angle(relative_pos: Vector) -> bool {
-    relative_pos.x.abs() <= 1 ||
-    relative_pos.y.abs() <= 1 ||
-    (relative_pos.x.abs() - relative_pos.y.abs()).abs() <= 1
+    relative_pos.x.abs() <= 1
+        || relative_pos.y.abs() <= 1
+        || (relative_pos.x.abs() - relative_pos.y.abs()).abs() <= 1
 }
 
 fn should_shoot_regardless_of_angle(opponent: &Ship) -> bool {
@@ -276,6 +276,7 @@ fn room_for_attack(x4: (i64, i64, i64, i64), x5: i64, x6: i64, n_acc: i64) -> bo
 const PLANET_RADIUS: i64 = 16;
 const SAFE_AREA: i64 = 128;
 const MAX_TURN: isize = 384;
+const EXPLOSION_RADIUS: i64 = 6;
 fn play(client: ProxyClient) -> Result<(), Error> {
     let mut rng = rand::thread_rng();
 
@@ -308,6 +309,9 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_opponent_vel = Vector::new(0, 0);
     let mut prev_opponent = game_state.find_ship_info(role.opponent()).ship;
     let mut prev_opponent_commands = game_state.find_ship_info(role.opponent()).applied_commands;
+
+    let mut prev_player_ships = game_state.get_all_role_ships(role);
+    let mut prev_opponents_ships = game_state.get_all_role_ships(role.opponent());
 
     let mut guess_hit = 0;
     let mut guess_miss = 0;
@@ -360,12 +364,15 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             commands.push(acc);
         }
 
-        let (next_opponent_pos, _) =
-            if use_guess {
-                guess_opponent_next(prev_opponent_pos, prev_opponent_vel, &prev_opponent_commands)
-            } else {
-                simulate_next(prev_opponent_pos, prev_opponent_vel)
-            };
+        let (next_opponent_pos, _) = if use_guess {
+            guess_opponent_next(
+                prev_opponent_pos,
+                prev_opponent_vel,
+                &prev_opponent_commands,
+            )
+        } else {
+            simulate_next(prev_opponent_pos, prev_opponent_vel)
+        };
         let (next_pos, _) = simulate_next(prev_pos, prev_vel);
         if role == Role::Attacker {
             // うまく移動して、次のターンで射線が通るならばそう移動する
@@ -379,7 +386,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                     let next_relative_pos = next_opponent_pos - next_modified_pos;
                     if is_good_attack_angle(next_relative_pos) {
                         info!("@@@@ [{:?}] move for shoot: v={}", role, -v);
-                        let ac = Command::Accelerate{
+                        let ac = Command::Accelerate {
                             ship_id: ship_id,
                             vector: -v,
                         };
@@ -392,8 +399,10 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 
             let relative_pos = next_opponent_pos - next_pos;
             // 条件を満たしていれば殴る
-            if room_for_attack(prev_x4, prev_x5, prev_x6, commands.len() as i64) &&
-                (must_shoot || is_good_attack_angle(relative_pos) || should_shoot_regardless_of_angle(&prev_opponent))
+            if room_for_attack(prev_x4, prev_x5, prev_x6, commands.len() as i64)
+                && (must_shoot
+                    || is_good_attack_angle(relative_pos)
+                    || should_shoot_regardless_of_angle(&prev_opponent))
             {
                 info!("@@@@ [{:?}] shoot", role);
                 let beam = Command::Shoot {
@@ -405,8 +414,35 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             }
         }
 
+        if role == Role::Attacker {
+            for child_ship in prev_player_ships.iter() {
+                if ship_id == child_ship.ship.ship_id {
+                    continue;
+                }
+                let (child_next_pos, _) =
+                    simulate_next(child_ship.ship.position, child_ship.ship.velocity);
+                let vect = next_pos - child_next_pos;
+                if vect.x.abs() <= EXPLOSION_RADIUS + 2 && vect.y.abs() <= EXPLOSION_RADIUS + 2 {
+                    continue;
+                }
+                for opponent_ship in prev_opponents_ships.iter() {
+                    let (opponent_next_pos, _) =
+                        simulate_next(opponent_ship.ship.position, opponent_ship.ship.velocity);
+                    let vect = opponent_next_pos - child_next_pos;
+                    if vect.x.abs() <= EXPLOSION_RADIUS - 1 && vect.y.abs() <= EXPLOSION_RADIUS - 1
+                    {
+                        info!("@@@@ [{:?}] detonate, pos={:?}", role, child_next_pos);
+                        let expload = Command::Detonate {
+                            ship_id: child_ship.ship.ship_id,
+                        };
+                        commands.push(expload);
+                    }
+                }
+            }
+        }
+
         // Spawnできるとき
-        if role == Role::Defender && commands.len() == 0 && prev_x4.3 > 1 {
+        if commands.len() == 0 && prev_x4.3 > 1 {
             if simulate_in_orbit(
                 prev_pos,
                 prev_vel,
@@ -476,14 +512,33 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         prev_opponent = opponent;
         prev_opponent_commands = opponent_info.applied_commands;
 
-        info!("@@@@ [{:?}] guess={}, actual={}, hit={}", role, next_opponent_pos, opponent.position, next_opponent_pos == opponent.position);
+        prev_player_ships = game_state.get_all_role_ships(role);
+        prev_opponents_ships = game_state.get_all_role_ships(role.opponent());
+
+        info!(
+            "@@@@ [{:?}] guess={}, actual={}, hit={}",
+            role,
+            next_opponent_pos,
+            opponent.position,
+            next_opponent_pos == opponent.position
+        );
         if next_opponent_pos == opponent.position {
             guess_hit += 1;
         } else {
             guess_miss += 1;
         }
-        info!("@@@@ [{:?}] guess_hit={}, guess_miss={}, hit_rate={}", role, guess_hit, guess_miss, guess_hit as f64 / (guess_hit + guess_miss) as f64);
-        if use_guess && guess_hit + guess_miss >= 30 && (guess_hit as f64 / (guess_hit + guess_miss) as f64) < 0.3 {
+        info!(
+            "@@@@ [{:?}] guess_hit={}, guess_miss={}, hit_rate={}",
+            role,
+            guess_hit,
+            guess_miss,
+            guess_hit as f64 / (guess_hit + guess_miss) as f64
+        );
+
+        if use_guess
+            && guess_hit + guess_miss >= 30
+            && (guess_hit as f64 / (guess_hit + guess_miss) as f64) < 0.3
+        {
             use_guess = false;
             info!("@@@@ [{:?}] guess rate is too low. use naive", role);
         }
