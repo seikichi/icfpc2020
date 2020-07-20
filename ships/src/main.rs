@@ -13,6 +13,7 @@ use rand::Rng;
 use std::env;
 use std::rc::Rc;
 use std::thread;
+use std::cmp::max;
 
 use crate::command::*;
 use crate::data::*;
@@ -265,8 +266,35 @@ fn is_good_attack_angle(relative_pos: Vector) -> bool {
         || (relative_pos.x.abs() - relative_pos.y.abs()).abs() <= 1
 }
 
-fn should_shoot_regardless_of_angle(opponent: &Ship) -> bool {
-    opponent.x4.2 == 0 || (opponent.x6 - opponent.x5) <= 10
+fn should_shoot_regardless_of_angle(opponent: &Ship, relative_pos: Vector, power: i64) -> bool {
+    let dmg = calculate_damage(relative_pos, power);
+    if dmg <= 0 {
+        return false;
+    }
+    opponent.x4.2 == 0 || (opponent.x6 - opponent.x5) <= dmg
+}
+
+fn square(x: i64) -> i64 {
+    x * x
+}
+
+fn calculate_damage(mut relative_pos: Vector, power: i64) -> i64 {
+    if relative_pos.x.abs() == 0 {
+        let diff = relative_pos.y.abs();
+        max(power * 3 - diff, 0)
+    } else if relative_pos.y.abs() == 0 {
+        let diff = relative_pos.x.abs();
+        max(power * 3 - diff, 0)
+    } else {
+        relative_pos = Vector::new(relative_pos.x.abs(), relative_pos.y.abs());
+        if relative_pos.x < relative_pos.y {
+            relative_pos = Vector::new(relative_pos.y, relative_pos.x);
+        }
+        // 横から行く
+        let dmg1 = power * 3 - relative_pos.x - square(relative_pos.y + 1);
+        let dmg2 = power * 3 - relative_pos.y - square(relative_pos.x - relative_pos.y + 1);
+        max(max(dmg1, dmg2), 0)
+    }
 }
 
 fn room_for_attack(x4: (i64, i64, i64, i64), x5: i64, x6: i64, n_acc: i64) -> bool {
@@ -402,7 +430,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             if room_for_attack(prev_x4, prev_x5, prev_x6, commands.len() as i64)
                 && (must_shoot
                     || is_good_attack_angle(relative_pos)
-                    || should_shoot_regardless_of_angle(&prev_opponent))
+                    || should_shoot_regardless_of_angle(&prev_opponent, relative_pos, prev_x4.1))
             {
                 info!("@@@@ [{:?}] shoot", role);
                 let beam = Command::Shoot {
