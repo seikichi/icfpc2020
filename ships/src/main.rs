@@ -147,10 +147,10 @@ pub struct RequestFailedError {}
 
 fn normalize_dir(v: Vector) -> Vector {
     let mut best = Vector::new(0, 0);
-    let mut best_cosine = 0;
+    let mut best_cosine = 0.0;
     for y in -1..=1 {
         for x in -1..=1 {
-            let cosine = v.x * x + v.y * y;
+            let cosine = cosine_sim(v, Vector::new(x, y));
             if cosine > best_cosine {
                 best = Vector::new(x, y);
                 best_cosine = cosine;
@@ -212,9 +212,9 @@ fn simulate_orbit_out_of_safe_area(mut pos: Vector, mut vel: Vector, n: isize, s
     return n+1;
 }
 
-//fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
-//    return (v1.dot(&v2) as f64) / (v1.abs() * v2.abs());
-//}
+fn cosine_sim(v1: Vector, v2: Vector) -> f64 {
+    return (v1.dot(&v2) as f64) / (v1.abs() * v2.abs());
+}
 
 fn play(client: ProxyClient) -> Result<(), Error> {
     let mut rng = rand::thread_rng();
