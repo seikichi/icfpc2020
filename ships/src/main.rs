@@ -107,10 +107,10 @@ impl ProxyClient {
                 // max 388, 1, 4, 4
                 // max 232, 40, 4, 4
                 Role::Attacker => AstNode::make_list(&vec![
-                    AstNode::make_number(60),
+                    AstNode::make_number(68),
                     AstNode::make_number(58),
                     AstNode::make_number(16),
-                    AstNode::make_number(14),
+                    AstNode::make_number(10),
                 ]),
                 Role::Defender => AstNode::make_list(&vec![
                     AstNode::make_number(232),
