@@ -403,9 +403,7 @@ enum Mode {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    Builder::from_default_env()
-        .filter(None, LevelFilter::Info)
-        .init();
+    Builder::from_default_env().init();
 
     let args: Vec<String> = env::args().collect();
 
