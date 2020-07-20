@@ -350,18 +350,32 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 commands.push(beam);
             }
         }
-        if role == Role::Defender
-            && commands.len() == 0
-            && prev_x4.3 > 1
-            && simulate_in_orbit(prev_pos, prev_vel, 256 - tick, PLANET_RADIUS, SAFE_AREA)
-        {
-            info!("@@@@ [{:?}] spawn", role);
-            let spawn = Command::Spawn {
-                ship_id: ship_id,
-                parameter: (0, 0, 0, 1),
-            };
-            commands.push(spawn);
-            next_should_move = true;
+        if role == Role::Defender && commands.len() == 0 && prev_x4.3 > 1 {
+            if simulate_in_orbit(prev_pos, prev_vel, 256 - tick, PLANET_RADIUS, SAFE_AREA) {
+                info!("@@@@ [{:?}] spawn", role);
+                let spawn = Command::Spawn {
+                    ship_id: ship_id,
+                    parameter: (0, 0, 0, 1),
+                };
+                commands.push(spawn);
+                next_should_move = true;
+            } else {
+                let dx = [1, 1, 1, 0, -1, -1, -1, 0];
+                let dy = [-1, 0, 1, 1, 1, 0, -1, -1];
+                for i in 0..8 {
+                    let tvel = Vector::new(prev_vel.x + dx[i], prev_vel.y + dy[i]);
+                    if simulate_in_orbit(prev_pos, tvel, 256 - tick, PLANET_RADIUS, SAFE_AREA) {
+                        let dir = Vector::new(-dx[i], -dy[i]);
+                        info!("@@@@ [{:?}] ac for spawn {:?}", role, dir);
+                        let ac = Command::Accelerate {
+                            ship_id: ship_id,
+                            vector: Vector::new(-dx[i], -dy[i]),
+                        };
+                        commands.push(ac);
+                        break;
+                    }
+                }
+            }
         }
 
         let resp = client.commands(&commands)?;
