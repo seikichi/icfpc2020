@@ -102,15 +102,30 @@ impl GameState {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum AppliedCommand {
+    Accelerate{ vector: Vector },
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ShipAndAppliedCommands {
     pub ship: Ship,
-    // appliedCommands
+    // ship_id は -1 で固定。Accelerate しか取ってない
+    pub applied_commands: Vec<AppliedCommand>, 
 }
 
 impl ShipAndAppliedCommands {
     pub fn from_ast(ast: Rc<AstNode>) -> Self {
         let ship = Ship::from_ast(ast.get_list_item(0));
-        Self { ship }
+        let commands_ast = ast.get_list_item(1);
+        let mut commands = vec![];
+        commands_ast.for_each(|command_ast|
+            if command_ast.get_list_item(0).get_number() == 0 {
+                commands.push(AppliedCommand::Accelerate{
+                    vector: Vector::from_ast(command_ast.get_list_item(1)),
+                });
+            }
+        );
+        Self { ship, applied_commands: commands }
     }
 }
 

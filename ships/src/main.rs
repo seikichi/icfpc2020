@@ -9,7 +9,6 @@ extern crate log;
 use env_logger::Builder;
 use failure::Error;
 use failure::Fail;
-use log::LevelFilter;
 use rand::Rng;
 use std::env;
 use std::rc::Rc;
@@ -183,6 +182,21 @@ fn simulate_next(mut pos: Vector, mut vel: Vector) -> (Vector, Vector) {
     (pos, vel)
 }
 
+fn guess_opponent_next(
+    pos: Vector,
+    mut vel: Vector,
+    prev_commands: &Vec<AppliedCommand>
+) -> (Vector, Vector) {
+    for c in prev_commands.iter() {
+        match c {
+            AppliedCommand::Accelerate{ vector } => {
+                vel -= *vector;
+            }
+        }
+    }
+    simulate_next(pos, vel)
+}
+
 // 星にぶつかるまでの時間をかえす
 fn simulate_orbit_to_planet(
     mut pos: Vector,
@@ -290,6 +304,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_opponent_pos = Vector::new(0, 0);
     let mut prev_opponent_vel = Vector::new(0, 0);
     let mut prev_opponent = game_state.find_ship_info(role.opponent()).ship;
+    let mut prev_opponent_commands = game_state.find_ship_info(role.opponent()).applied_commands;
 
     loop {
         let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, PLANET_RADIUS + 10);
@@ -335,7 +350,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             commands.push(acc);
         }
 
-        let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
+        let (next_opponent_pos, _) = guess_opponent_next(prev_opponent_pos, prev_opponent_vel, &prev_opponent_commands);
         let (next_pos, _) = simulate_next(prev_pos, prev_vel);
         if (next_opponent_pos - next_pos).abs() < 20.0 {
             // 敵と接近するとき
@@ -426,10 +441,12 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         prev_x7 = ship.x7;
         info!("[{:?}] {:?} {} {}", role, prev_x4, prev_x5, prev_x6);
 
-        let opponent = game_state.find_ship_info(role.opponent()).ship;
+        let opponent_info = game_state.find_ship_info(role.opponent());
+        let opponent = opponent_info.ship;
         prev_opponent_pos = opponent.position;
         prev_opponent_vel = opponent.velocity;
         prev_opponent = opponent;
+        prev_opponent_commands = opponent_info.applied_commands;
         tick += 1;
     }
 }
