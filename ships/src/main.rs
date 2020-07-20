@@ -246,7 +246,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_opponent_vel = Vector::new(0, 0);
 
     loop {
-        let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, 16);
+        let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, 26);
         let out_of_bound_steps = simulate_orbit_out_of_safe_area(prev_pos, prev_vel, 5, 128);
 
         let orbit_v = {
