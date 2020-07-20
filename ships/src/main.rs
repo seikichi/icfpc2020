@@ -108,9 +108,9 @@ impl ProxyClient {
                 // max 388, 1, 4, 4
                 // max 232, 40, 4, 4
                 Role::Attacker => AstNode::make_list(&vec![
-                    AstNode::make_number(30),
-                    AstNode::make_number(96),
-                    AstNode::make_number(8),
+                    AstNode::make_number(86),
+                    AstNode::make_number(58),
+                    AstNode::make_number(16),
                     AstNode::make_number(1),
                 ]),
                 Role::Defender => AstNode::make_list(&vec![
@@ -286,15 +286,20 @@ fn play(client: ProxyClient) -> Result<(), Error> {
             // 動く (50%)
             if commands.is_empty() && rng.gen_range(0, 2) == 0 {
                 info!("@@@@ [{:?}] v={}, in_danger", role, orbit_v);
-                let acc = Command::Accelerate{
+                let acc = Command::Accelerate {
                     ship_id: ship_id,
                     vector: orbit_v,
                 };
                 commands.push(acc);
             }
+        }
+        let attack_dist = if role == Role::Attacker { 400.0 } else { 10.0 };
+        if (next_opponent_pos - next_pos).abs() < attack_dist {
             // 殴る
-            if prev_x5 + prev_x4.1 < prev_x6 { // 温度が大丈夫そうなら
-                let beam = Command::Shoot{
+            if prev_x5 + prev_x4.1 <= prev_x6 {
+                info!("@@@@ [{:?}] shoot", role);
+                // 温度が大丈夫そうなら
+                let beam = Command::Shoot {
                     ship_id: ship_id,
                     target: next_opponent_pos,
                     x3: prev_x4.1,
@@ -304,16 +309,22 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         }
 
         let resp = client.commands(&commands)?;
-        info!("[{:?}] GameResponse: {:?}", role, resp);
+        // info!("[{:?}] GameResponse: {:?}", role, resp);
         let game_state = resp.game_state.unwrap();
 
         let ship = game_state.find_ship_info(role).ship;
-        info!("@@@@ [{:?}] pos={}, vel={}", role, ship.position, ship.velocity);
+        info!(
+            "@@@@ [{:?}] pos={}, vel={}",
+            role, ship.position, ship.velocity
+        );
         if resp.stage == GameStage::Finished {
             return Ok(());
         }
         if resp.stage == GameStage::NotStarted {
-            panic!("[{:?}] Unexpected game stage NotStarted (after COMMANDS)", role);
+            panic!(
+                "[{:?}] Unexpected game stage NotStarted (after COMMANDS)",
+                role
+            );
         }
 
         prev_vel = ship.velocity;
@@ -322,6 +333,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         prev_x5 = ship.x5;
         prev_x6 = ship.x6;
         prev_x7 = ship.x7;
+        info!("[{:?}] {:?} {} {}", role, prev_x4, prev_x5, prev_x6);
 
         let opponent = game_state.find_ship_info(role.opponent()).ship;
         prev_opponent_pos = opponent.position;
