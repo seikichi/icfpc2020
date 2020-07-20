@@ -28,7 +28,7 @@ fn send(
     let param = api_key.map_or_else(|| "".to_owned(), |k| "?apiKey=".to_owned() + &k);
     let url = server_url.to_owned() + "/aliens/send" + &param;
 
-    info!("Request({}): url={}, body={}", purpose, url, args);
+    // info!("Request({}): url={}, body={}", purpose, url, args);
 
     let encoded_args = modulate(args);
     let client = reqwest::blocking::Client::new();
@@ -57,10 +57,10 @@ fn send(
         let e = RequestFailedError {};
         return Err(From::from(e));
     }
-    info!(
-        "Response({}): status={}, body={}",
-        purpose, status, decoded_body
-    );
+    // info!(
+    //     "Response({}): status={}, body={}",
+    //    purpose, status, decoded_body
+    // );
     Ok(decoded_body)
 }
 
@@ -88,11 +88,11 @@ impl ProxyClient {
         send(self.api_key.clone(), &self.server_url, args, purpose)
     }
 
-    pub fn join(&self) -> Result<GameResponse, Error> {
+    pub fn join(&self, unknown: Rc<AstNode>) -> Result<GameResponse, Error> {
         let args = AstNode::make_list(&vec![
             AstNode::make_number(2),
             AstNode::make_number(self.player_key),
-            AstNode::make_nil(),
+            unknown,
         ]);
         let resp = self.send(args, "JOIN")?;
         info!("JOIN: resp={}", resp);
@@ -249,7 +249,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
 
     info!("Player: {}", client.player_key);
 
-    let resp = client.join()?;
+    let resp = client.join(AstNode::make_nil())?;
     if resp.stage == GameStage::Finished {
         return Ok(());
     }
@@ -435,33 +435,93 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     info!("Mode: {:?}, ServerUrl: {}", mode, server_url);
 
-    match mode {
-        Mode::Local => {
-            let (attacker_id, defender_id) = create_players(Some(api_key.clone()), &server_url)?;
+    // ------------------
+    let (attacker_id, defender_id) = create_players(Some(api_key.clone()), &server_url)?;
 
-            let api_key_copy = api_key.clone();
-            let server_url_copy = server_url.clone();
-            let attacker = thread::spawn(move || {
-                let client = ProxyClient::new(&server_url_copy, attacker_id, Some(api_key_copy));
-                play(client).unwrap()
-            });
+    let api_key_copy = api_key.clone();
+    let server_url_copy = server_url.clone();
+    let attacker = thread::spawn(move || {
+        let client = ProxyClient::new(&server_url_copy, attacker_id, Some(api_key_copy));
 
-            let api_key_copy2 = api_key.clone();
-            let server_url_copy2 = server_url.clone();
-            let defender = thread::spawn(move || {
-                let client = ProxyClient::new(&server_url_copy2, defender_id, Some(api_key_copy2));
-                play(client).unwrap()
-            });
+        // -----------------------------------
+        // let unknown = AstNode::make_list(&vec![AstNode::make_number(128), AstNode::make_number(2)]);
+        let unknown = AstNode::make_list(&vec![
+            AstNode::make_number(0),
+            AstNode::make_number(128),
+            AstNode::make_number(0),
+            AstNode::make_number(2),
+        ]);
 
-            attacker.join().unwrap();
-            defender.join().unwrap();
-            Ok(())
+        // info!("Player: {}", client.player_key);
+        let resp = client.join(unknown).unwrap();
+        // let resp = client.join(AstNode::make_nil()).unwrap();
+        if resp.stage == GameStage::Finished {
+            return;
         }
-        Mode::Remote => {
-            let player_key = args[2].parse::<i64>()?;
-            let client = ProxyClient::new(&server_url, player_key, None);
-            play(client)?;
-            Ok(())
+        let role = resp.static_game_info.role;
+        // info!("GameResponse from JOIN (Role: {:?}): {:?}", role, resp);
+
+        let resp = client.start(role).unwrap();
+        let role = resp.static_game_info.role;
+        // info!("GameResponse from START (Role: {:?}): {:?}", role, resp);
+
+        info!(
+            "!!!!!!!!!!!!!: {:?}",
+            resp.game_state.unwrap().find_ship_info(role)
+        )
+    });
+
+    let api_key_copy2 = api_key.clone();
+    let server_url_copy2 = server_url.clone();
+    let defender = thread::spawn(move || {
+        let client = ProxyClient::new(&server_url_copy2, defender_id, Some(api_key_copy2));
+
+        // -----------------------------------
+        // info!("Player: {}", client.player_key);
+        let resp = client.join(AstNode::make_nil()).unwrap();
+        if resp.stage == GameStage::Finished {
+            return;
         }
-    }
+        let role = resp.static_game_info.role;
+        // info!("GameResponse from JOIN (Role: {:?}): {:?}", role, resp);
+
+        let resp = client.start(role).unwrap();
+        let role = resp.static_game_info.role;
+        // info!("GameResponse from START (Role: {:?}): {:?}", role, resp);
+    });
+
+    attacker.join().unwrap();
+    defender.join().unwrap();
+    Ok(())
+    // ------------------
+
+    // match mode {
+    //     Mode::Local => {
+    //         let (attacker_id, defender_id) = create_players(Some(api_key.clone()), &server_url)?;
+
+    //         let api_key_copy = api_key.clone();
+    //         let server_url_copy = server_url.clone();
+    //         let attacker = thread::spawn(move || {
+    //             let client = ProxyClient::new(&server_url_copy, attacker_id, Some(api_key_copy));
+    //             play(client).unwrap()
+    //         });
+
+    //         let api_key_copy2 = api_key.clone();
+    //         let server_url_copy2 = server_url.clone();
+    //         let defender = thread::spawn(move || {
+    //             let client = ProxyClient::new(&server_url_copy2, defender_id, Some(api_key_copy2));
+    //             play(client).unwrap()
+    //         });
+
+    //         attacker.join().unwrap();
+    //         defender.join().unwrap();
+    //         Ok(())
+    //     }
+    //     Mode::Remote => {
+    //         let player_key = args[2].parse::<i64>()?;
+    //         let client = ProxyClient::new(&server_url, player_key, None);
+    //         play(client)?;
+    //         Ok(())
+    //     }
+    // }
 }
