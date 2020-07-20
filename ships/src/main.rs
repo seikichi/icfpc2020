@@ -271,6 +271,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_x5 = 0; // ヒート的な値
     let mut prev_x6 = 0; // オーバーヒートの上限
     let mut prev_x7 = 0;
+    let mut next_should_move = false;
     let mut prev_opponent_pos = Vector::new(0, 0);
     let mut prev_opponent_vel = Vector::new(0, 0);
 
@@ -307,6 +308,16 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         } else {
             vec![]
         };
+
+        if commands.is_empty() && next_should_move {
+            next_should_move = false;
+            info!("@@@@ [{:?}] v={}, after spawn", role, orbit_v);
+            let acc = Command::Accelerate {
+                ship_id: ship_id,
+                vector: orbit_v,
+            };
+            commands.push(acc);
+        }
 
         let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
         let (next_pos, _) = simulate_next(prev_pos, prev_vel);
@@ -347,6 +358,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
                 parameter: (0, 0, 0, 1),
             };
             commands.push(spawn);
+            next_should_move = true;
         }
 
         let resp = client.commands(&commands)?;
