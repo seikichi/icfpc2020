@@ -306,6 +306,9 @@ fn play(client: ProxyClient) -> Result<(), Error> {
     let mut prev_opponent = game_state.find_ship_info(role.opponent()).ship;
     let mut prev_opponent_commands = game_state.find_ship_info(role.opponent()).applied_commands;
 
+    let mut guess_hit = 0;
+    let mut guess_miss = 0;
+
     loop {
         let collide_steps = simulate_orbit_to_planet(prev_pos, prev_vel, 8, PLANET_RADIUS + 10);
         let out_of_bound_steps = simulate_orbit_out_of_safe_area(prev_pos, prev_vel, 5, SAFE_AREA);
@@ -351,6 +354,7 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         }
 
         let (next_opponent_pos, _) = guess_opponent_next(prev_opponent_pos, prev_opponent_vel, &prev_opponent_commands);
+        //let (next_opponent_pos, _) = simulate_next(prev_opponent_pos, prev_opponent_vel);
         let (next_pos, _) = simulate_next(prev_pos, prev_vel);
         if (next_opponent_pos - next_pos).abs() < 20.0 {
             // 敵と接近するとき
@@ -447,6 +451,14 @@ fn play(client: ProxyClient) -> Result<(), Error> {
         prev_opponent_vel = opponent.velocity;
         prev_opponent = opponent;
         prev_opponent_commands = opponent_info.applied_commands;
+
+        info!("@@@@ guess={}, actual={}, hit={}", next_opponent_pos, opponent.position, next_opponent_pos == opponent.position);
+        if next_opponent_pos == opponent.position {
+            guess_hit += 1;
+        } else {
+            guess_miss += 1;
+        }
+        info!("@@@@ [{:?}] guess_hit={}, guess_miss={}, hit_rate={}", role, guess_hit, guess_miss, guess_hit as f64 / (guess_hit + guess_miss) as f64);
         tick += 1;
     }
 }
