@@ -14,4 +14,4 @@
 
 - [core](https://github.com/seikichi/icfpc2020/tree/master/core): Interpreter
 - [ships](https://github.com/seikichi/icfpc2020/tree/master/ships): Ship
-- [pad](https://github.com/seikichi/icfpc2020/tree/master/ships): Galaxy Pad
+- [pad](https://github.com/seikichi/icfpc2020/tree/master/pad): Galaxy Pad
