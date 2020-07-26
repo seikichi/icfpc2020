@@ -9,3 +9,9 @@
 
 - Rust: 1.44.1
 - Cargo: 1.44.1
+
+## Workspace
+
+- [core](https://github.com/seikichi/icfpc2020/tree/master/core): Interpreter
+- [ships](https://github.com/seikichi/icfpc2020/tree/master/ships): Ship
+- [pad](https://github.com/seikichi/icfpc2020/tree/master/ships): Galaxy Pad
